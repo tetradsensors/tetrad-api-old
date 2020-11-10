@@ -19,12 +19,12 @@ def log(s):
 # Load in .env and set the table name
 #   Required for compatibility with GCP, can't use pipenv there
 load_dotenv()  
-SLC_BIGQUERY_TABLE_ID = getenv("SLC_BIGQUERY_TABLE_ID")
+BIGQUERY_TABLE_SLC = getenv("BIGQUERY_TABLE_SLC")
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
 
 SOURCE_TABLE_MAP = {
-    "SLC": SLC_BIGQUERY_TABLE_ID,
+    "SLC": BIGQUERY_TABLE_SLC,
 }
 
 VALID_QUERY_FIELDS = [
@@ -384,7 +384,7 @@ def _requestFieldInRadius(field, lat, lon, radius, start, end):
             `Elevation`,
             `{field}`
         FROM 
-            `{SLC_BIGQUERY_TABLE_ID}`
+            `{BIGQUERY_TABLE_SLC}`
         WHERE
             `Timestamp` >= @start
             AND 
@@ -454,7 +454,7 @@ def request_model_data_local(lat, lon, radius, start_date, end_date):
         SELECT 
             ID, time, PM2_5, Latitude, Longitude
         FROM 
-            `{SLC_BIGQUERY_TABLE_ID}`
+            `{BIGQUERY_TABLE_SLC}`
         WHERE 
             time > @start_date AND time < @end_date
             AND
