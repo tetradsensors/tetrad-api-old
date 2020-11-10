@@ -17,10 +17,10 @@ init(app)
 
 cache = Cache(app)
 
-environ["GOOGLE_APPLICATION_CREDENTIALS"] = "aqandu/aqandu.json"
+environ["GOOGLE_APPLICATION_CREDENTIALS"] = getenv("GOOGLE_APPLICATION_CREDENTIALS_PATH")
 bq_client = Client(project=PROJECT_ID)
 
-from aqandu import utils
+from ignite import utils
 elevation_interpolator = utils.setupElevationInterpolator('elevation_map.mat')
 
-from aqandu import api_routes, basic_routes
+from ignite import api_routes, basic_routes

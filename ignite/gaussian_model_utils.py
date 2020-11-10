@@ -11,8 +11,8 @@ from numpy import (
     nonzero,
     transpose
 )
-from aqandu import gaussian_model
-from aqandu import utils
+from ignite import gaussian_model
+from ignite import utils
 from torch import tensor
 
 

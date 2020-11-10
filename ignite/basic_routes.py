@@ -1,4 +1,4 @@
-from aqandu import app
+from ignite import app
 from flask import render_template
 
 

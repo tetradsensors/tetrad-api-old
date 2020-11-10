@@ -3,13 +3,13 @@ config.py
 config.production.py
 .env
 .env.prod
-aqandu/aqandu.json
+ignite/ignite.json
 
 # Auto generated files
-aqandu/static/.webassets-cache
-aqandu/static/.webassets-manifest
-aqandu/static/svgs-26-03-2018-13-40/
-aqandu/static/sample_data/
+ignite/static/.webassets-cache
+ignite/static/.webassets-manifest
+ignite/static/svgs-26-03-2018-13-40/
+ignite/static/sample_data/
 
 # Misc
 env/

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from os import getenv
-from aqandu import app, bq_client, cache, utils, elevation_interpolator, gaussian_model_utils
+from ignite import app, bq_client, cache, utils, elevation_interpolator, gaussian_model_utils
 from dotenv import load_dotenv
 from flask import request, jsonify
 from google.cloud.bigquery import QueryJobConfig, ScalarQueryParameter
