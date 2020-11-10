@@ -4,6 +4,8 @@ config.production.py
 .env
 .env.prod
 ignite/ignite.json
+ignite/fbAdminConfig.json
+ignite/fbconfig.json
 
 # Auto generated files
 ignite/static/.webassets-cache

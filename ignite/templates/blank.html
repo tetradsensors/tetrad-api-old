@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% block head %}
+
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blank Page</title>
+
+  {% endblock %}
+</head>
+
+<body>
+  hi
+<!-- The core Firebase JS SDK is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+
+<!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#available-libraries -->
+<script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-analytics.js"></script>
+
+<script>
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  var firebaseConfig = {
+    apiKey: "AIzaSyC-FDTDStaJrPap3AaBQqQw1kgQ7aPx5vs",
+    authDomain: "us-ignite.firebaseapp.com",
+    databaseURL: "https://us-ignite.firebaseio.com",
+    projectId: "us-ignite",
+    storageBucket: "us-ignite.appspot.com",
+    messagingSenderId: "1003586375806",
+    appId: "1:1003586375806:web:b3c107492fbe89c9fb882f",
+    measurementId: "G-8P6ZHS8F12"
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  firebase.analytics();
+</script>
+</body>
+
+</html>

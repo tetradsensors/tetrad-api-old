@@ -1,11 +1,17 @@
+from os import getenv
 from datetime import datetime, timedelta
 from pytz import timezone
 from utm import from_latlon
 from matplotlib.path import Path
 from scipy import interpolate
 from scipy.io import loadmat
+from dotenv import load_dotenv
 from csv import reader as csv_reader
+import math 
+import numpy as np
 
+load_dotenv()
+CORRECTION_FACTORS_FILENAME = getenv("CORRECTION_FACTORS_FILENAME")
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
@@ -19,6 +25,26 @@ def validateDate(dateString):
         return False
 
 
+def validLatitude(lat):
+    """Check if latitude is valid"""
+    return (-90 <= lat <= 90)
+
+
+def validLongitude(lon):
+    """Check if longitude is valid"""
+    return (-180 <= lon <= 180)
+
+
+def validLatLon(lat, lon):
+    """Check if lat/lon are valid"""
+    return validLatitude(lat) and validLongitude(lon)
+
+
+def validRadius(radius):
+    """Check if valid radius for Earth"""
+    return (0 < radius < 6.3e6)
+
+
 def parseDateString(datetime_string):
     """Parse date string into a datetime object"""
     return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('US/Mountain'))
@@ -28,7 +54,7 @@ def datetimeToBigQueryTimestamp(date):
     return date.strftime(BQ_DATETIME_FORMAT)
 
 
-# Load up elevation grid
+# # Load up elevation grid
 def setupElevationInterpolator(filename):
     data = loadmat(filename)
     elevation_grid = data['elevs']
@@ -56,15 +82,55 @@ def loadCorrectionFactors(filename):
             rowDict = {name: elem for elem, name in zip(row, header)}
             rowDict['start_date'] = parseDateString(rowDict['start_date'])
             rowDict['end_date'] = parseDateString(rowDict['end_date'])
-            rowDict['1003_slope'] = float(rowDict['1003_slope'])
-            rowDict['1003_intercept'] = float(rowDict['1003_intercept'])
             rowDict['3003_slope'] = float(rowDict['3003_slope'])
             rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
-            rowDict['5003_slope'] = float(rowDict['5003_slope'])
-            rowDict['5003_intercept'] = float(rowDict['5003_intercept'])
             correction_factors.append(rowDict)
         return correction_factors
 
+
+def applyCorrectionFactor(factors, data_timestamp, data):
+    for factor in factors:
+        factor_start = factor['start_date']
+        factor_end = factor['end_date']
+        if factor_start <= data_timestamp and factor_end > data_timestamp:
+            return data * factor['3003_slope'] + factor['3003_intercept']
+    print('\nNo correction factor found for ', data_timestamp)
+    return data
+
+
+def applyCorrectionFactorsToList(data_list):
+    """Apply correction factors (in place) to PM2.5 data in data_list"""
+    
+    # Open the file and get correction factors
+    with open(CORRECTION_FACTORS_FILENAME) as csv_file:
+        read_csv = csv_reader(csv_file, delimiter=',')
+        rows = [row for row in read_csv]
+        header = rows[0]
+        rows = rows[1:]
+        correction_factors = []
+        for row in rows:
+            rowDict = {name: elem for elem, name in zip(row, header)}
+            rowDict['start_date'] = parseDateString(rowDict['start_date'])
+            rowDict['end_date'] = parseDateString(rowDict['end_date'])
+            rowDict['3003_slope'] = float(rowDict['3003_slope'])
+            rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
+            correction_factors.append(rowDict)
+        
+    # Apply the correction factors to the PM2.5 data
+    for datum in data_list:
+        datum['PM2_5'] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum['PM2_5'])
+        # found = False
+        # for factor in correction_factors:
+        #     factor_start = factor['start_date']
+        #     factor_end = factor['end_date']
+        #     if factor_start <= datum['Timestamp'] < factor_end:
+        #         datum['PM2_5'] = datum['PM2_5'] * factor['3003_slope'] + factor['3003_intercept']
+        #         found = True
+        #         break
+        # if not found:
+        #     print('\nNo correction factor found for ', datum['Timestamp'])
+    return data_list
+        
 
 def loadLengthScales(filename):
     with open(filename) as csv_file:
@@ -103,10 +169,12 @@ def removeInvalidSensors(sensor_data):
     epoch = timezone('US/Mountain').localize(epoch)
     dayCounts = {}
     dayReadings = {}
+
+    # Accumulate total PM and # entries for each sensor and each day
     for datum in sensor_data:
         pm25 = datum['PM2_5']
-        datum['daysSinceEpoch'] = (datum['time'] - epoch).days
-        key = (datum['daysSinceEpoch'], datum['ID'])
+        datum['daysSinceEpoch'] = (datum['Timestamp'] - epoch).days
+        key = (datum['daysSinceEpoch'], datum['DeviceID'])
         if key in dayCounts:
             dayCounts[key] += 1
             dayReadings[key] += pm25
@@ -123,68 +191,56 @@ def removeInvalidSensors(sensor_data):
         keysToRemoveSet.add((key[0] - 1, key[1]))
 
     print(f'Removing these days from data due to exceeding 350 ug/m3 avg: {keysToRemoveSet}')
-    sensor_data = [datum for datum in sensor_data if (datum['daysSinceEpoch'], datum['ID']) not in keysToRemoveSet]
+    sensor_data = [datum for datum in sensor_data if (datum['daysSinceEpoch'], datum['DeviceID']) not in keysToRemoveSet]
 
     # TODO NEEDS TESTING!
     # 5003 sensors are invalid if Raw 24-hour average PM2.5 levels are > 5 ug/m3
     # AND the two sensors differ by more than 16%
-    sensor5003Locations = {
-        datum['ID']: (datum['utm_x'], datum['utm_y']) for datum in sensor_data if datum['type'] == '5003'
-    }
-    sensorMatches = {}
-    for sensor in sensor5003Locations:
-        for match in sensor5003Locations:
-            if sensor5003Locations[sensor] == sensor5003Locations[match] and sensor != match:
-                sensorMatches[sensor] = match
-                sensorMatches[match] = sensor
-
-    keysToRemoveSet = set()
-    for key in dayReadings:
-        sensor = key[1]
-        day = key[0]
-        if sensor in sensorMatches:
-            match = sensorMatches[sensor]
-            reading1 = dayReadings[key] / dayCounts[key]
-            key2 = (day, match)
-            if key2 in dayReadings:
-                reading2 = dayReadings[key2] / dayCounts[key2]
-                difference = abs(reading1 - reading2)
-                maximum = max(reading1, reading2)
-                if min(reading1, reading2) > 5 and difference / maximum > 0.16:
-                    keysToRemoveSet.add(key)
-                    keysToRemoveSet.add((key[0] + 1, key[1]))
-                    keysToRemoveSet.add((key[0] - 1, key[1]))
-                    keysToRemoveSet.add(key2)
-                    keysToRemoveSet.add((key2[0] + 1, key2[1]))
-                    keysToRemoveSet.add((key2[0] - 1, key2[1]))
-
-    print((
-        "Removing these days from data due to pair of 5003 sensors with both > 5 "
-        f"daily reading and smaller is 16% different reading from larger : {keysToRemoveSet}"
-    ))
-    sensor_data = [datum for datum in sensor_data if (datum['daysSinceEpoch'], datum['ID']) not in keysToRemoveSet]
+    # sensor5003Locations = {
+    #     datum['ID']: (datum['utm_x'], datum['utm_y']) for datum in sensor_data if datum['type'] == '5003'
+    # }
+    # sensorMatches = {}
+    # for sensor in sensor5003Locations:
+    #     for match in sensor5003Locations:
+    #         if sensor5003Locations[sensor] == sensor5003Locations[match] and sensor != match:
+    #             sensorMatches[sensor] = match
+    #             sensorMatches[match] = sensor
+    #
+    # keysToRemoveSet = set()
+    # for key in dayReadings:
+    #     sensor = key[1]
+    #     day = key[0]
+    #     if sensor in sensorMatches:
+    #         match = sensorMatches[sensor]
+    #         reading1 = dayReadings[key] / dayCounts[key]
+    #         key2 = (day, match)
+    #         if key2 in dayReadings:
+    #             reading2 = dayReadings[key2] / dayCounts[key2]
+    #             difference = abs(reading1 - reading2)
+    #             maximum = max(reading1, reading2)
+    #             if min(reading1, reading2) > 5 and difference / maximum > 0.16:
+    #                 keysToRemoveSet.add(key)
+    #                 keysToRemoveSet.add((key[0] + 1, key[1]))
+    #                 keysToRemoveSet.add((key[0] - 1, key[1]))
+    #                 keysToRemoveSet.add(key2)
+    #                 keysToRemoveSet.add((key2[0] + 1, key2[1]))
+    #                 keysToRemoveSet.add((key2[0] - 1, key2[1]))
+    #
+    # print((
+    #     "Removing these days from data due to pair of 5003 sensors with both > 5 "
+    #     f"daily reading and smaller is 16% different reading from larger : {keysToRemoveSet}"
+    # ))
+    # sensor_data = [datum for datum in sensor_data if (datum['daysSinceEpoch'], datum['ID']) not in keysToRemoveSet]
 
     # * Otherwise just average the two readings and correct as normal.
     return sensor_data
 
 
-def applyCorrectionFactor(factors, data_timestamp, data, sensor_type):
-    for factor in factors:
-        factor_start = factor['start_date']
-        factor_end = factor['end_date']
-        if factor_start <= data_timestamp and factor_end > data_timestamp:
-            if sensor_type == '1003':
-                return data * factor['1003_slope'] + factor['1003_intercept']
-            elif sensor_type == '3003':
-                return data * factor['3003_slope'] + factor['3003_intercept']
-            elif sensor_type == '5003':
-                return data * factor['5003_slope'] + factor['5003_intercept']
-    print('\nNo correction factor found for ', data_timestamp)
-    return data
-
-
 def getScalesInTimeRange(scales, start_time, end_time):
     relevantScales = []
+    if start_time == end_time:
+        start_time = start_time - timedelta(days=1)
+        end_time = end_time + timedelta(days=1)
     for scale in scales:
         scale_start = scale['start_date']
         scale_end = scale['end_date']
@@ -202,11 +258,18 @@ def interpolateQueryDates(start_datetime, end_datetime, period):
 
     return query_dates
 
+def interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size):
+    lat_vector = np.linspace(lat_lo, lat_hi, lat_size)
+    lon_vector = np.linspace(lon_lo, lon_hi, lon_size)
+
+    return lon_vector, lat_vector
+
 
 def latlonToUTM(lat, lon):
     return from_latlon(lat, lon)
 
 
+# TODO: Rename
 def convertLatLonToUTM(sensor_data):
     for datum in sensor_data:
         datum['utm_x'], datum['utm_y'], datum['zone_num'], zone_let = latlonToUTM(datum['Latitude'], datum['Longitude'])
