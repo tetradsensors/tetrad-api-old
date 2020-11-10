@@ -22,3 +22,4 @@ env/
 
 # Model Generated Files
 *.txt
+ignite/ignite.json
