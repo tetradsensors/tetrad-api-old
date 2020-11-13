@@ -10,9 +10,7 @@ from csv import reader as csv_reader
 import math 
 import numpy as np
 
-load_dotenv()
-CORRECTION_FACTORS_FILENAME = getenv("CORRECTION_FACTORS_FILENAME")
-
+#load_dotenv()
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
 
@@ -55,24 +53,24 @@ def datetimeToBigQueryTimestamp(date):
 
 
 # # Load up elevation grid
-def setupElevationInterpolator(filename):
-    data = loadmat(filename)
+def setupElevationInterpolator():
+    data = loadmat(getenv("ELEVATION_MAP_FILENAME"))
     elevation_grid = data['elevs']
     gridLongs = data['gridLongs']
     gridLats = data['gridLats']
     return interpolate.interp2d(gridLongs, gridLats, elevation_grid, kind='cubic')
 
 
-def loadBoundingBox(filename):
-    with open(filename) as csv_file:
+def loadBoundingBox():
+    with open(getenv("BOUNDING_BOX_FILENAME")) as csv_file:
         read_csv = csv_reader(csv_file, delimiter=',')
         rows = [row for row in read_csv][1:]
         bounding_box_vertices = [(index, float(row[1]), float(row[2])) for row, index in zip(rows, range(len(rows)))]
         return bounding_box_vertices
 
 
-def loadCorrectionFactors(filename):
-    with open(filename) as csv_file:
+def loadCorrectionFactors():
+    with open(getenv("CORRECTION_FACTORS_FILENAME")) as csv_file:
         read_csv = csv_reader(csv_file, delimiter=',')
         rows = [row for row in read_csv]
         header = rows[0]
@@ -102,7 +100,7 @@ def applyCorrectionFactorsToList(data_list):
     """Apply correction factors (in place) to PM2.5 data in data_list"""
     
     # Open the file and get correction factors
-    with open(CORRECTION_FACTORS_FILENAME) as csv_file:
+    with open(getenv("CORRECTION_FACTORS_FILENAME")) as csv_file:
         read_csv = csv_reader(csv_file, delimiter=',')
         rows = [row for row in read_csv]
         header = rows[0]
@@ -132,8 +130,8 @@ def applyCorrectionFactorsToList(data_list):
     return data_list
         
 
-def loadLengthScales(filename):
-    with open(filename) as csv_file:
+def loadLengthScales():
+    with open(getenv("LENGTH_SCALES_FILENAME")) as csv_file:
         read_csv = csv_reader(csv_file, delimiter=',')
         rows = [row for row in read_csv]
         header = rows[0]

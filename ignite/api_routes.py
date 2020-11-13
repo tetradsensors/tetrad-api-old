@@ -3,25 +3,27 @@ from os import getenv
 from ignite import app, bq_client, cache, utils, gaussian_model_utils, elevation_interpolator
 from dotenv import load_dotenv
 from flask import request, jsonify
-from google.cloud.bigquery import QueryJobConfig, ScalarQueryParameter
+from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
 from time import time 
 import pandas as pd 
 import numpy as np 
 import re 
 
 
-DEBUG = True
+DEBUG = False
 def log(s):
     if DEBUG:
         print(s)
 
 
-# Load in .env and set the table name
-#   Required for compatibility with GCP, can't use pipenv there
-load_dotenv()  
+# load_dotenv()  
 BIGQUERY_TABLE_SLC = getenv("BIGQUERY_TABLE_SLC")
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
+PROJECT_ID = getenv("PROJECTID")
+
+bq_client = Client(project=PROJECT_ID)
+elevation_interpolator = utils.setupElevationInterpolator()
 
 SOURCE_TABLE_MAP = {
     "SLC": BIGQUERY_TABLE_SLC,
@@ -492,7 +494,7 @@ def request_model_data_local(lat, lon, radius, start_date, end_date):
 
     # Apply correction factors
     model_data = utils.applyCorrectionFactorsToList(model_data)
-    # correction_factors = utils.loadCorrectionFactors('correction_factors.csv')
+    # correction_factors = utils.loadCorrectionFactors(getenv("CORRECTION_FACTORS_FILENAME"))
     # print(f'Loaded {len(correction_factors)} correction factors.')
 
     # for datum in sensor_data:
@@ -520,8 +522,8 @@ def request_model_data_local(lat, lon, radius, start_date, end_date):
 #     return jsonify(model_data)
 
 
-# @app.route("/api/getPredictionsForLocation/", methods=['GET'])
-# def getPredictionsForLocation():
+@app.route("/api/getPredictionsForLocation/", methods=['GET'])
+def getPredictionsForLocation():
     # Check that the arguments we want exist
     # if not validateInputs(['lat', 'lon', 'predictionsperhour', 'start_date', 'end_date'], request.args):
     #     return 'Query string is missing one or more of lat, lon, predictionsperhour, start_date, end_date', 400
@@ -551,18 +553,18 @@ def request_model_data_local(lat, lon, radius, start_date, end_date):
     ))
 
     # step 0, load up the bounding box from file and check that request is within it
-    bounding_box_vertices = utils.loadBoundingBox('bounding_box.csv')
+    bounding_box_vertices = utils.loadBoundingBox()
     print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
 
     if not utils.isQueryInBoundingBox(bounding_box_vertices, query_lat, query_lon):
         return 'The query location is outside of the bounding box.', 400
 
     # step 1, load up correction factors from file
-    correction_factors = utils.loadCorrectionFactors('correction_factors.csv')
+    correction_factors = utils.loadCorrectionFactors()
     print(f'Loaded {len(correction_factors)} correction factors.')
 
     # step 2, load up length scales from file
-    length_scales = utils.loadLengthScales('length_scales.csv')
+    length_scales = utils.loadLengthScales()
     print(f'Loaded {len(length_scales)} length scales.')
 
     print('Loaded length scales:', length_scales, '\n')
@@ -681,7 +683,7 @@ def getEstimatesForLocations():
     ))
 
     # step 0, load up the bounding box from file and check that request is within it
-    bounding_box_vertices = utils.loadBoundingBox('bounding_box.csv')
+    bounding_box_vertices = utils.loadBoundingBox()
     print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
 
     for i in range(num_locations):
@@ -689,11 +691,11 @@ def getEstimatesForLocations():
             return 'The query location, {query_lats[i]},{query_lons[i]},  is outside of the bounding box.', 400
 
     # step 1, load up correction factors from file
-    # correction_factors = utils.loadCorrectionFactors('correction_factors.csv')
+    # correction_factors = utils.loadCorrectionFactors(getenv("CORRECTION_FACTORS_FILENAME"))
     # print(f'Loaded {len(correction_factors)} correction factors.')
 
     # step 2, load up length scales from file
-    length_scales = utils.loadLengthScales('length_scales.csv')
+    length_scales = utils.loadLengthScales()
     print(f'Loaded {len(length_scales)} length scales.')
 
     print('Loaded length scales:', length_scales, '\n')
@@ -840,7 +842,7 @@ def getEstimateMap():
     ))
 
     # step 0, load up the bounding box from file and check that request is within it
-    bounding_box_vertices = utils.loadBoundingBox('bounding_box.csv')
+    bounding_box_vertices = utils.loadBoundingBox()
     print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
 
     if not (
@@ -851,11 +853,11 @@ def getEstimateMap():
         return 'One of the query locations is outside of the bounding box for the database', 400
 
     # step 1, load up correction factors from file
-    correction_factors = utils.loadCorrectionFactors('correction_factors.csv')
+    correction_factors = utils.loadCorrectionFactors()
     print(f'Loaded {len(correction_factors)} correction factors.')
 
     # step 2, load up length scales from file
-    length_scales = utils.loadLengthScales('length_scales.csv')
+    length_scales = utils.loadLengthScales()
     print(f'Loaded {len(length_scales)} length scales.')
 
     print('Loaded length scales:', length_scales, '\n')
@@ -884,7 +886,7 @@ def getEstimateMap():
 
     UTM_N_hi, UTM_E_hi, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
     UTM_N_lo, UTM_E_lo, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
-# compute the lenght of the diagonal of the lat-lon box.  This units here are **meters**
+# compute the length of the diagonal of the lat-lon box.  This units here are **meters**
     lat_diff = UTM_N_hi - UTM_N_lo
     lon_diff = UTM_E_hi - UTM_E_lo
     print(f'SPACE_KERNEL_FACTOR_PADDING= {type(SPACE_KERNEL_FACTOR_PADDING)}\nlatlon_length_scale={type(latlon_length_scale)}\nlat_diff={type(lat_diff)}\nlon_diff={type(lon_diff)}')
@@ -903,9 +905,9 @@ def getEstimateMap():
     #     end_date=query_datetime + TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale))
     
     # Convert dates to strings
-    start = query_datetime - TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale)
+    start = query_datetime - TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
     start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = query_datetime + TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale)
+    end = query_datetime + TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     print(f'Start: {start_str}\nEnd: {end_str}')
@@ -1014,5 +1016,12 @@ def getEstimateMap():
     variances = yVar.tolist()
     print(lat_vector.tolist())
     print(lon_vector.tolist())
-    return jsonify({"Elevations":elevations, "PM2.5":estimates, "PM2.5 variance":variances, "Latitudes":lat_vector.tolist(), "Longitudes":lon_vector.tolist()})
+    return jsonify(
+        {
+            "Elevations": elevations, 
+            "PM2.5": estimates, 
+            "PM2.5 variance": variances, 
+            "Latitudes": lat_vector.tolist(), 
+            "Longitudes": lon_vector.tolist()
+        })
     

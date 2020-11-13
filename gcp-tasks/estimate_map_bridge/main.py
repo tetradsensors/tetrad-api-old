@@ -3,20 +3,39 @@ import logging
 import datetime
 import requests
 from google.cloud import firestore
-import config
 from pprint import pprint
 
 
+#########################
+# Following this post:
+# https://cloud.google.com/blog/products/application-development/how-to-schedule-a-recurring-python-script-on-gcp
+#########################
+
+
+# Globals
+PROJECT_ID = "us-ignite"
+FIRESTORE_COLLECTION= "model"
+FIRESTORE_DOCUMENT_PREFIX= "estimate_map_"
+URL_BASE= "https://us-ignite.wm.r.appspot.com/api/getEstimateMap"
+LAT_LO= 40.644519
+LAT_HI= 40.806852
+LON_LO= -111.971465
+LON_HI= -111.811118
+LAT_SIZE= 10
+LON_SIZE= 10
+
+
 def _add_tags(model_data, dt_str):
-    model_data['lat_lo'] = CV['LAT_LO']
-    model_data['lat_hi'] = CV['LAT_HI']
-    model_data['lon_lo'] = CV['LON_LO']
-    model_data['lon_hi'] = CV['LON_HI']
-    model_data['lat_size'] = CV['LAT_SIZE']
-    model_data['lon_size'] = CV['LON_SIZE']
+    model_data['lat_lo'] = LAT_LO
+    model_data['lat_hi'] = LAT_HI
+    model_data['lon_lo'] = LON_LO
+    model_data['lon_hi'] = LON_HI
+    model_data['lat_size'] = LAT_SIZE
+    model_data['lon_size'] = LON_SIZE
     model_data['date'] = dt_str
     print('Added tags...')
     return model_data 
+
 
 def _reformat_2dlist(model_data):
     for k,v in model_data.items():
@@ -41,13 +60,13 @@ def main(data, context):
         context (google.cloud.functions.Context): Metadata for the event.
     """
 
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CV["CREDENTIALS_PATH"]
-    fs_col = firestore.Client().collection(CV['FIRESTORE_COLLECTION'])
+    client = firestore.Client()
+    collection = client.collection(FIRESTORE_COLLECTION)
 
-    DT_QUERY_STR = (datetime.datetime.utcnow() - datetime.timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    DT_QUERY_STR = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
     DT_QUERY_STR = '2020-10-10T00:00:00Z'
 
-    URL = f"""{CV['URL_BASE']}?lat_lo={CV['LAT_LO']}&lon_lo={CV['LON_LO']}&lat_hi={CV['LAT_HI']}&lon_hi={CV['LON_HI']}&lat_size={CV['LAT_SIZE']}&lon_size={CV['LON_SIZE']}&date={DT_QUERY_STR}"""
+    URL = f"""{URL_BASE}?lat_lo={LAT_LO}&lon_lo={LON_LO}&lat_hi={LAT_HI}&lon_hi={LON_HI}&lat_size={LAT_SIZE}&lon_size={LON_SIZE}&date={DT_QUERY_STR}"""
     print(URL)
     resp = requests.get(URL)
     if resp.status_code == 200:
@@ -56,13 +75,12 @@ def main(data, context):
         model_data = _reformat_2dlist(model_data)
         pprint(model_data)
 
-        # model_data = _add_tags(model_data, DT_QUERY_STR)
+        model_data = _add_tags(model_data, DT_QUERY_STR)
         
         print('Uploading to firestore')
-        ret = fs_col.document(f'{CV["FIRESTORE_DOCUMENT_PREFIX"]}{DT_QUERY_STR}').set(model_data)
+        ret = collection.document(f'{FIRESTORE_DOCUMENT_PREFIX}{DT_QUERY_STR}').set(model_data)
         print('Firestore return:', ret)
 
 
 if __name__ == '__main__':
-    CV = config.config_vars
     main('data', 'context')
