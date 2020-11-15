@@ -38,3 +38,6 @@ gcloud app deploy app.yaml
 This will start building the containers that serve the website. You can check for a successful deployment from the app engine versions dashboard in GCP. The app usually builds and deploys within a few minutes, but sometimes, Google can be a little slow with the building.
 
 **NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.
+
+## Tom's Notes
+- `fbconfig.json` and `fbAdminConfig.json` firebase credentials files added to `Google Secrets Manager`. `apiKey` from `fbconfig.json` is in the URL to get a session token for a user. 

@@ -271,3 +271,4 @@ def latlonToUTM(lat, lon):
 def convertLatLonToUTM(sensor_data):
     for datum in sensor_data:
         datum['utm_x'], datum['utm_y'], datum['zone_num'], zone_let = latlonToUTM(datum['Latitude'], datum['Longitude'])
+

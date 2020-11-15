@@ -64,7 +64,6 @@ def main(data, context):
     collection = client.collection(FIRESTORE_COLLECTION)
 
     DT_QUERY_STR = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
-    DT_QUERY_STR = '2020-10-10T00:00:00Z'
 
     URL = f"""{URL_BASE}?lat_lo={LAT_LO}&lon_lo={LON_LO}&lat_hi={LAT_HI}&lon_hi={LON_HI}&lat_size={LAT_SIZE}&lon_size={LON_SIZE}&date={DT_QUERY_STR}"""
     print(URL)

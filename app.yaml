@@ -40,6 +40,7 @@ handlers:
 env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
+  PROJECT_ID: "us-ignite"
   BIGQUERY_TABLE_SLC: "us-ignite.dev.slc"
   # BIGQUERY_TABLE_CHATT: "us-ignite.production.chatt"
   # BIGQUERY_TABLE_KC: "us-ignite.production.kc"
@@ -48,6 +49,8 @@ env_variables:
   CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"
   LENGTH_SCALES_FILENAME: "model_files/length_scales.csv"
+  FB_CONFIG_SECRET: "firebase_config"
+  FB_ADMIN_CONFIG_SECRET: "firebase_admin_config"
   SPACE_KERNEL_FACTOR_PADDING: 2.0
   TIME_KERNEL_FACTOR_PADDING: 3.0
 

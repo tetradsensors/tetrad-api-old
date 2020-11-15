@@ -1,26 +1,23 @@
 from datetime import datetime, timedelta
-from os import getenv
-from ignite import app, bq_client, cache, utils, gaussian_model_utils, elevation_interpolator
 from dotenv import load_dotenv
 from flask import request, jsonify
+import functools
 from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
-from time import time 
-import pandas as pd 
+from ignite import app, cache, fb_utils, gaussian_model_utils, limiter, utils
+import json
 import numpy as np 
+from os import getenv
+import pandas as pd 
 import re 
+import requests
+from time import time 
 
-
-DEBUG = False
-def log(s):
-    if DEBUG:
-        print(s)
-
-
-# load_dotenv()  
+# Get env variables
+PROJECT_ID = getenv("PROJECT_ID")
 BIGQUERY_TABLE_SLC = getenv("BIGQUERY_TABLE_SLC")
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
-PROJECT_ID = getenv("PROJECTID")
+
 
 bq_client = Client(project=PROJECT_ID)
 elevation_interpolator = utils.setupElevationInterpolator()
@@ -793,8 +790,10 @@ def getEstimatesForLocations():
 
     return jsonify(estimates)
 
-#http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=10&lon_size=10&date=2020-10-10T00:00:00Z
+#http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
 @app.route("/api/getEstimateMap", methods=["GET"])
+@fb_utils.admin 
+@limiter.limit('1/minute')
 def getEstimateMap():
     """
     lat_hi
@@ -926,7 +925,7 @@ def getEstimateMap():
     if isinstance(sensor_data, tuple):
         return sensor_data
 
-    print("sensor data:", sensor_data)
+    # print("sensor data:", sensor_data)
     unique_sensors = {datum['DeviceID'] for datum in sensor_data}
     print(f'Loaded {len(sensor_data)} data points for {len(unique_sensors)} unique devices from bgquery.')
 
@@ -1014,8 +1013,8 @@ def getEstimateMap():
     yVar = yVar.reshape((lat_size, lon_size))
     estimates = yPred.tolist()
     variances = yVar.tolist()
-    print(lat_vector.tolist())
-    print(lon_vector.tolist())
+    # print(lat_vector.tolist())
+    # print(lon_vector.tolist())
     return jsonify(
         {
             "Elevations": elevations, 
