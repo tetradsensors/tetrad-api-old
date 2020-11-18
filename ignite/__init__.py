@@ -10,6 +10,7 @@ from ignite import utils
 load_dotenv()
 PROJECT_ID = getenv("PROJECTID")
 
+
 app = Flask(__name__)
 app.config.from_object(config)
 app.config["CACHE_TYPE"] = "simple"
@@ -19,10 +20,12 @@ init(app)
 cache = Cache(app)
 
 
-environ["GOOGLE_APPLICATION_CREDENTIALS"] = getenv("GOOGLE_APPLICATION_CREDENTIALS_PATH")
+#environ["GOOGLE_APPLICATION_CREDENTIALS"] = getenv("GOOGLE_APPLICATION_CREDENTIALS_PATH")
+environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ignite/documents/us-ignite-7883c721368d.json"
 bq_client = Client(project=PROJECT_ID)
 
 # from ignite import utils
 elevation_interpolator = utils.setupElevationInterpolator('elevation_map.mat')
 
-from ignite import api_routes, basic_routes
+from ignite import api_routes, basic_routes, my_route
+

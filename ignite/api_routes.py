@@ -20,8 +20,8 @@ def log(s):
 #   Required for compatibility with GCP, can't use pipenv there
 load_dotenv()  
 BIGQUERY_TABLE_SLC = getenv("BIGQUERY_TABLE_SLC")
-SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
-TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
+#SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
+#TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
 
 SOURCE_TABLE_MAP = {
     "SLC": BIGQUERY_TABLE_SLC,
@@ -1015,4 +1015,5 @@ def getEstimateMap():
     print(lat_vector.tolist())
     print(lon_vector.tolist())
     return jsonify({"Elevations":elevations, "PM2.5":estimates, "PM2.5 variance":variances, "Latitudes":lat_vector.tolist(), "Longitudes":lon_vector.tolist()})
+    #return jsonify({"lat":lat_vector.toliste(), "lon":lon_vector.tolist(), "count": 1})
     
