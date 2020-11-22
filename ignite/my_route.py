@@ -26,27 +26,56 @@ sensor_table = os.getenv("BIGQ_SENSOR")
 def request_data_flask(d):
     sensor_list = []
     # get the latest sensor data from each sensor
-    q = ("SELECT `" + sensor_table + "`.DEVICE_ID, time, PM1, PM2_5, PM10, Latitude, Longitude, Temperature, MICS_RED, MICS_OX, Humidity, SensorModel "
-         "FROM `" + sensor_table + "` "
-         "INNER JOIN (SELECT DEVICE_ID, MAX(time) as maxts "
-         "FROM `" + sensor_table + "` GROUP BY DEVICE_ID) mr "
-         "ON `" + sensor_table + "`.DEVICE_ID = mr.DEVICE_ID AND time = maxts;")
+    # q = ("SELECT `" + sensor_table + "`.DEVICE_ID, time, PM1, PM2_5, PM10, Latitude, Longitude, Temperature, MICS_RED, MICS_OX, Humidity, SensorModel "
+    #      "FROM `" + sensor_table + "` "
+    #      "INNER JOIN (SELECT DEVICE_ID, MAX(time) as maxts "
+    #      "FROM `" + sensor_table + "` GROUP BY DEVICE_ID) mr "
+    #      "ON `" + sensor_table + "`.DEVICE_ID = mr.DEVICE_ID AND time = maxts;")
+
+    # Rewrite by Tom to use less memory
+    q= f"""SELECT 
+                ID as DeviceID, 
+                time as Timestamp, 
+                Latitude, 
+                Longitude, 
+                PM2_5
+            FROM
+                (
+                    SELECT 
+                        *, 
+                        ROW_NUMBER() 
+                            OVER (
+                                    PARTITION BY 
+                                        ID 
+                                    ORDER BY 
+                                        time DESC) row_num
+                    FROM 
+                        `{sensor_table}`
+                    WHERE 
+                        time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+                )
+            WHERE 
+                row_num = 1;
+    """
 
     query_job = bq_client.query(q)
     rows = query_job.result()  # Waits for query to finish
     for row in rows:
-        sensor_list.append({"DEVICE_ID": str(row.DEVICE_ID),
-                            "Latitude": row.Latitude,
-                            "Longitude": row.Longitude,
-                            "time": str(row.time),
-                            "PM1": row.PM1,
-                            "PM2_5": row.PM2_5,
-                            "PM10": row.PM10,
-                            "Temperature": row.Temperature,
-                            "Humidity": row.Humidity,
-                            "MICS_OX": row.MICS_OX,
-                            "MICS_RED": row.MICS_RED,
-                            "SensorModel": row.SensorModel})
+        sensor_list.append(
+            {
+                "DeviceID": str(row.DeviceID),
+                "Latitude": row.Latitude,
+                "Longitude": row.Longitude,
+                "Timestamp": str(row.Timestamp),
+                # "PM1": row.PM1,
+                "PM2_5": row.PM2_5,
+                # "PM10": row.PM10,
+                # "Temperature": row.Temperature,
+                # "Humidity": row.Humidity,
+                # "MICS_OX": row.MICS_OX,
+                # "MICS_RED": row.MICS_RED,
+                # "SensorModel": row.SensorModel
+            })
 
     json_sensors = json.dumps(sensor_list, indent=4)
     print (sensor_list)
