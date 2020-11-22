@@ -13,43 +13,81 @@ fs_client = firestore.Client()
 
 
 def fs_get_in_group(uid, group):
-    doc = fs_client.collection('user_groups').document(f'{group}').get()
-    return (doc.exists) and (f'{uid}' in list(doc.get('uid')))
+    if isinstance(group, str):
+        print("fs_get_in_group", "was str")
+        doc = fs_client.collection('user_groups').document(f'{group}').get()
+        return (doc.exists) and (f'{uid}' in list(doc.get('uid')))
+    elif isinstance(group, list):
+        print("fs_get_in_group", "was list")
+        docs = fs_client.collection('user_groups').where('__name__', 'in', group).stream()
+        valid_uids = []
+        for doc in docs:
+            print('doc.get("uid"):', doc.get('uid'))
+            valid_uids += list(doc.get('uid')) 
+        print('valid_uids:', valid_uids)
+        return (f'{uid}' in valid_uids)
+    else:
+        print("fs_get_in_group", "was None")
+        return False
 
 
-def check_token(f):
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        if not request.headers.get('authorization'):
-            return {'message': 'No token provided. Please provide a key/value pair for header: authorization:<session JWT>"'}, 400
-        try:
-            user = auth.verify_id_token(request.headers['authorization'])
-            request.user = user
-        except Exception as e:
-            return {'message':'Invalid token provided.' + str(e)}, 400
-        return f(*args, **kwargs)
-    return wrapper
+# def check_token(f):
+#     @functools.wraps(f)
+#     def wrapper(*args, **kwargs):
+#         if not request.headers.get('authorization'):
+#             return {'message': 'No token provided. Please provide a key/value pair for header: authorization:<session JWT>"'}, 400
+#         try:
+#             user = auth.verify_id_token(request.headers['authorization'])
+#             request.user = user
+#         except Exception as e:
+#             return {'message':'Invalid token provided.' + str(e)}, 400
+#         return f(*args, **kwargs)
+#     return wrapper
 
 
-def admin(f):
+# def admin(f):
+#     """
+#     Decorator for api routes. Check if user filled 'authorization' header field
+#     then make sure they are in the 'admin' group in Firestore. 
+#     """
+#     @functools.wraps(f)
+#     def wrapper(*args, **kwargs):
+#         if not request.headers.get('authorization'):
+#             return {'message': 'No token provided. Please provide a key/value pair for header: authorization:<session JWT>"'}, 400
+#         try:
+#             user = auth.verify_id_token(request.headers['authorization'])
+#             request.user = user
+#         except Exception as e:
+#             return {'message':'Invalid token provided.' + str(e)}, 400
+
+#         if not fs_get_in_group(user['user_id'], 'admin'):
+#             return {'message': 'User does not have appropriate permissions to use this route.'}, 400
+#         return f(*args, **kwargs)
+#     return wrapper
+
+def ingroup(group_or_groups): 
     """
     Decorator for api routes. Check if user filled 'authorization' header field
     then make sure they are in the 'admin' group in Firestore. 
     """
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        if not request.headers.get('authorization'):
-            return {'message': 'No token provided. Please provide a key/value pair for header: authorization:<session JWT>"'}, 400
-        try:
-            user = auth.verify_id_token(request.headers['authorization'])
-            request.user = user
-        except Exception as e:
-            return {'message':'Invalid token provided.' + str(e)}, 400
+    def inner(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            if not request.headers.get('authorization'):
+                return {'message': 'No token provided. Please provide a key/value pair for header: authorization:<session JWT>"'}, 400
+            try:
+                user = auth.verify_id_token(request.headers['authorization'])
+                request.user = user
+            except Exception as e:
+                return {'message':'Invalid token provided.' + str(e)}, 400
 
-        if not fs_get_in_group(user['user_id'], 'admin'):
-            return {'message': 'User does not have appropriate permissions to use this route.'}, 400
-        return f(*args, **kwargs)
-    return wrapper
+            if not fs_get_in_group(user['user_id'], group_or_groups):
+                return {'message': 'User does not have appropriate permissions to use this route.'}, 400
+            
+            # finally, execute the calling function
+            return f(*args, **kwargs)
+        return wrapper
+    return inner 
 
 
 def _access_secret_version(secret_id, version_id="latest"):

@@ -792,7 +792,7 @@ def getEstimatesForLocations():
 
 #http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
 @app.route("/api/getEstimateMap", methods=["GET"])
-@fb_utils.admin 
+@fb_utils.ingroup('admin')
 @limiter.limit('1/minute')
 def getEstimateMap():
     """
@@ -981,8 +981,8 @@ def getEstimateMap():
 # Ross was here
 #######################
 
-#    locations_lat = locations_lat.flatten()
-#    locations_lon = locations_lon.flatten()
+    # locations_lat = locations_lat.flatten()
+    # locations_lon = locations_lon.flatten()
 #    print(locations_lat.shape)
 #    print(locations_lon.shape)
     elevations = elevation_interpolator(lon_vector, lat_vector)
@@ -1013,10 +1013,11 @@ def getEstimateMap():
     yVar = yVar.reshape((lat_size, lon_size))
     estimates = yPred.tolist()
     variances = yVar.tolist()
+
     # print(lat_vector.tolist())
     # print(lon_vector.tolist())
-    return jsonify(
-        {
+
+    return jsonify({
             "Elevations": elevations, 
             "PM2.5": estimates, 
             "PM2.5 variance": variances, 
