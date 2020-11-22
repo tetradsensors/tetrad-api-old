@@ -1014,9 +1014,6 @@ def getEstimateMap():
     estimates = yPred.tolist()
     variances = yVar.tolist()
 
-    # print(lat_vector.tolist())
-    # print(lon_vector.tolist())
-
     return jsonify({
             "Elevations": elevations, 
             "PM2.5": estimates, 
@@ -1024,4 +1021,3 @@ def getEstimateMap():
             "Latitudes": lat_vector.tolist(), 
             "Longitudes": lon_vector.tolist()
         })
-    
