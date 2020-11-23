@@ -8,6 +8,7 @@ from scipy.io import loadmat
 from dotenv import load_dotenv
 from csv import reader as csv_reader
 import math 
+from flask import jsonify
 import numpy as np
 
 #load_dotenv()
@@ -96,7 +97,7 @@ def applyCorrectionFactor(factors, data_timestamp, data):
     return data
 
 
-def applyCorrectionFactorsToList(data_list):
+def applyCorrectionFactorsToList(data_list, pm_key="PM2_5"):
     """Apply correction factors (in place) to PM2.5 data in data_list"""
     
     # Open the file and get correction factors
@@ -116,7 +117,10 @@ def applyCorrectionFactorsToList(data_list):
         
     # Apply the correction factors to the PM2.5 data
     for datum in data_list:
-        datum['PM2_5'] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum['PM2_5'])
+        try:
+            datum[pm_key] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum[pm_key])
+        except: # Only try once. We just assume it isn't there if the first row doesn't have it
+            return data_list
         # found = False
         # for factor in correction_factors:
         #     factor_start = factor['start_date']
@@ -271,4 +275,24 @@ def latlonToUTM(lat, lon):
 def convertLatLonToUTM(sensor_data):
     for datum in sensor_data:
         datum['utm_x'], datum['utm_y'], datum['zone_num'], zone_let = latlonToUTM(datum['Latitude'], datum['Longitude'])
+
+
+def idsToWHEREClause(ids, id_tbl_name):
+    """
+    Return string that looks like:
+    (<id_tbl_name> = <id[0]> OR ... OR <id_tbl_name> = <id[n-1]>)
+    """
+    if isinstance(ids, str):
+        ids = [ids]
+    if not isinstance(ids, list):
+        raise TypeError('ids must be single DeviceID or DeviceID list')
+
+    return """({})""".format(' OR '.join([f'{id_tbl_name} = "{ID}"' for ID in ids]))
+
+
+def checkArgs(request_args, required_args):
+    if not all(elem in list(request_args) for elem in list(required_args)):
+        return jsonify({'Error': f'Missing arg, one of: {", ".join(list(required_args))}'}), 400
+    else:
+        return True, 200
 
