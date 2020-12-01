@@ -1,5 +1,5 @@
 # US Ignite Webpage and Backend
-These are instructions for setting up the Python Virtual Environment and frontend of the US Ignite site. This project was larely taken from [AQ&U](https://github.com/aqandu/aqandu_live_site). We use Python 3 at its latest version (on GCP) which, at the time of writing, is 3.8. These instructions assume that you have python 3.8 and pip installed locally.
+These are instructions for setting up the Python Virtual Environment and frontend of the US Ignite site. This project was larely adapted from [AQ&U](https://github.com/aqandu/aqandu_live_site). We use Python 3 at its latest version (on GCP) which, at the time of writing, is 3.8. These instructions assume that you have python 3.8 and pip installed locally.
 
 ## Table of Contents
 
@@ -31,8 +31,13 @@ Next we can generate the flask assets with `flask assets build`. Then you may la
 To deploy the application, you have to use the command line and the gcloud tools. Once you have the production config (from Tom) and you've set up gcloud cli with the correct default project, run the following commands:
 
 ```
-cp config.production.py config.py
 gcloud app deploy app.yaml
+```
+
+For additional information, include the `verbosity` flag:
+
+```
+gcloud app deploy --verbosity debug app.yaml
 ```
 
 This will start building the containers that serve the website. You can check for a successful deployment from the app engine versions dashboard in GCP. The app usually builds and deploys within a few minutes, but sometimes, Google can be a little slow with the building.
@@ -40,5 +45,26 @@ This will start building the containers that serve the website. You can check fo
 **NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.
 
 ## Tom's Notes
+
+### Flask
+- `import logging`
+  - `logging.debug('This is a debug message')`
+  - `logging.info('This is an info message')`
+  - `logging.warning('This is a warning message')`
+  - `logging.error('This is an error message')`
+  - `logging.critical('This is a critical message')`
+
+### Firebase
+- Create new project in [Firebase](https://console.firebase.google.com), which comes from your GCP project
+- `Authentication`: Enable Email/Password, Google
+- "Public-facing project name": `Tetrad Sensor Networks, LLC`
 - `fbconfig.json` and `fbAdminConfig.json` firebase credentials files added to `Google Secrets Manager`. 
 - `apiKey` from `fbconfig.json` is in the URL to get a session token for a user. 
+
+### Service Accounts
+
+### BigQuery
+
+### App Engine
+
+### Google Cloud Functions

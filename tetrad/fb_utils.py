@@ -7,6 +7,7 @@ from firebase_admin import auth
 from google.cloud import firestore, secretmanager
 from os import getenv
 from flask import request
+import re
 
 
 fs_client = firestore.Client()
@@ -117,3 +118,34 @@ def sign_in_with_email_and_password(email, password):
 
     request_object = requests.post(request_ref, headers=headers, data=data)
     return request_object.json()
+
+
+def check_email(email):
+    """
+    Email must be this format:
+        <2,>@<2,3>.<2,3>
+        ex: aa@aa.aa - GOOD
+            a@aa.aa  - BAD
+            aa@a.aa  - BAD
+            aa@aa.a  - BAD 
+    """
+    # https://www.geeksforgeeks.org/check-if-email-address-valid-or-not-in-python/
+    regex = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
+
+    if re.search(regex, email):
+        return True
+    else:
+        return False
+
+def check_password(password):
+    """
+    Password must be at least 8 characters and include lower, upper, number, and one of: @$!#%*?&
+        OR
+    Password must be at least 20 characters and include lower, upper, number. 
+    """
+    regex = r'^(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!#%*?&]{8,1024}$)|(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{20,1024}$)'
+    
+    if re.search(regex, password): 
+        return True 
+    else: 
+        return False

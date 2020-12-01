@@ -16,11 +16,9 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
-runtime: python
-env: flex
+runtime: python38
 
-runtime_config:
-  python_version: 3
+instance_class: F2
 
 resources:
   disk_size_gb: 20
@@ -29,7 +27,7 @@ entrypoint: gunicorn -b :$PORT main:app
 
 handlers:
 - url: /static
-  static_dir: ignite/static
+  static_dir: tetrad/static
   secure: always
 
 - url: /.*
@@ -40,11 +38,11 @@ handlers:
 env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
-  PROJECT_ID: "us-ignite"
-  BIGQUERY_TABLE_SLC: "us-ignite.dev.slc"
-  # BIGQUERY_TABLE_CHATT: "us-ignite.production.chatt"
-  # BIGQUERY_TABLE_KC: "us-ignite.production.kc"
-  # BIGQUERY_TABLE_CLEV: "us-ignite.production.clev"
+  PROJECT_ID: " tetrad-296715"
+  BIGQUERY_TABLE_SLC: "tetrad-296715.dev.slc"
+  # BIGQUERY_TABLE_CHATT: "tetrad-296715.production.chatt"
+  # BIGQUERY_TABLE_KC: "tetrad-296715.production.kc"
+  # BIGQUERY_TABLE_CLEV: "tetrad-296715.production.clev"
   BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
   CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"

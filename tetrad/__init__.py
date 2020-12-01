@@ -1,14 +1,10 @@
 from assets import init
-from dotenv import load_dotenv, find_dotenv
 from flask import Flask
 from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from ignite import utils 
+from tetrad import utils 
 from os import getenv, environ
-
-
-
 
 
 app = Flask(__name__)
@@ -24,4 +20,4 @@ init(app)
 cache = Cache(app)
 
 # Load our many route files
-from ignite import api_routes, basic_routes, fb_routes
+from tetrad import api_routes, basic_routes, fb_routes

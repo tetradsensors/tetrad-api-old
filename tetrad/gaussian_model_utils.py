@@ -1,8 +1,7 @@
 from datetime import datetime
 import pytz
 import numpy
-from ignite import gaussian_model
-from ignite import utils
+from tetrad import gaussian_model, utils
 import torch
 import statistics
 

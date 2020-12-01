@@ -1,4 +1,4 @@
-from ignite import app
+from tetrad import app
 from flask import render_template
 # import firebase_admin
 # import pyrebase

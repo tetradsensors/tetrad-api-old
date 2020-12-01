@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from flask import request, jsonify
 import functools
 from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
-from ignite import app, cache, fb_utils, gaussian_model_utils, limiter, utils
+from tetrad import app, cache, fb_utils, gaussian_model_utils, limiter, utils
 import json
 import numpy as np 
 from os import getenv
