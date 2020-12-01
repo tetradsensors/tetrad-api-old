@@ -26,3 +26,12 @@ Icon
 Icon*
 
 req.old
+
+local
+
+.DS_Store
+README.md
+get-pip.py 
+tox.ini 
+
+gcp-tasks

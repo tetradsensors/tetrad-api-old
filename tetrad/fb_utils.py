@@ -4,7 +4,7 @@ import json
 import requests 
 import functools
 from firebase_admin import auth
-from google.cloud import firestore, secretmanager
+from google.cloud import firestore, secretmanager, storage
 from os import getenv
 from flask import request
 import re
@@ -16,20 +16,20 @@ fs_client = firestore.Client()
 
 def fs_get_in_group(uid, group):
     if isinstance(group, str):
-        print("fs_get_in_group", "was str")
+        logging.error("fs_get_in_group was str")
         doc = fs_client.collection(getenv('FS_USER_GROUPS_COLLECTION')).document(f'{group}').get()
         return (doc.exists) and (f'{uid}' in list(doc.get(getenv('FS_USER_GROUPS_UIDS_KEY'))))
     elif isinstance(group, list):
-        print("fs_get_in_group", "was list")
+        logging.error("fs_get_in_group was list")
         docs = fs_client.collection(getenv('FS_USER_GROUPS_COLLECTION')).where('__name__', 'in', group).stream()
         valid_uids = []
         for doc in docs:
-            print('doc.get("uid"):', doc.get(getenv('FS_USER_GROUPS_UIDS_KEY')))
+            logging.error(doc.get(getenv('FS_USER_GROUPS_UIDS_KEY')))
             valid_uids += list(doc.get(getenv('FS_USER_GROUPS_UIDS_KEY'))) 
-        print('valid_uids:', valid_uids)
+        logging.error('valid_uids: ' + str(valid_uids))
         return (f'{uid}' in valid_uids)
     else:
-        print("fs_get_in_group", "was None")
+        logging.error("fs_get_in_group was None")
         return False
 
 
@@ -75,6 +75,7 @@ def ingroup(group_or_groups):
     def inner(f):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
+            logging.error(request.headers)
             if not request.headers.get('authorization'):
                 return {'message': 'No token provided. Please provide a key/value pair for header: authorization:<session JWT>"'}, 400
             try:
@@ -156,3 +157,26 @@ def check_password(password):
         return True 
     else: 
         return False
+
+
+def gs_get_blob(bucket_name, source_blob_name, dnl_type):
+    """
+    Download blob from GS bucket into bytes object
+    @parm dnl_type: one of "string", "text", "bytes"
+    """
+
+    c = storage.Client()
+    bucket = c.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    try:
+        if dnl_type == "string":
+            return blob.download_as_string()
+        elif dnl_type == "text":
+            return blob.download_as_text()
+        elif dnl_type == "bytes":
+            return blob.download_as_bytes()
+    except Exception as e:
+        logging.error(repr(e))
+        return 404
+    else:
+        return None

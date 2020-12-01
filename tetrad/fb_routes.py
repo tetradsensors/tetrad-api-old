@@ -1,9 +1,10 @@
 from firebase_admin import auth, initialize_app
-from flask import request
+from flask import request, send_file
 from tetrad import app, fb_utils
 import traceback 
 import logging 
-
+from os import getenv
+from io import BytesIO
 
 firebase_app = initialize_app()
 
@@ -62,3 +63,23 @@ def requestUid():
         return {'user_id': user['localId']}, 200
     else:
         return {'message': 'Error'}
+
+
+@app.route("/api/ota", methods=["GET"])
+@fb_utils.ingroup('airuv2')
+def ota():
+    """
+    Download the blob 
+    """
+    logging.error("ota route called!")
+    binary_name = str(request.args.get('name'))
+    if not binary_name.endswith('.bin'):
+        return "Bad name", 418
+    binary = fb_utils.gs_get_blob(getenv('GS_BUCKET_OTA'), binary_name, dnl_type="bytes")
+    if binary == 404:
+        return "File does not exist", 404
+    if isinstance(binary, bytes):
+        binary = BytesIO(binary)
+        return send_file(binary, mimetype='application/octet-stream')
+    else:
+        return "Bad type", 418
