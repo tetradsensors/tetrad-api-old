@@ -8,6 +8,7 @@ from google.cloud import firestore, secretmanager
 from os import getenv
 from flask import request
 import re
+import logging
 
 
 fs_client = firestore.Client()
@@ -16,15 +17,15 @@ fs_client = firestore.Client()
 def fs_get_in_group(uid, group):
     if isinstance(group, str):
         print("fs_get_in_group", "was str")
-        doc = fs_client.collection('user_groups').document(f'{group}').get()
-        return (doc.exists) and (f'{uid}' in list(doc.get('uid')))
+        doc = fs_client.collection(getenv('FS_USER_GROUPS_COLLECTION')).document(f'{group}').get()
+        return (doc.exists) and (f'{uid}' in list(doc.get(getenv('FS_USER_GROUPS_UIDS_KEY'))))
     elif isinstance(group, list):
         print("fs_get_in_group", "was list")
-        docs = fs_client.collection('user_groups').where('__name__', 'in', group).stream()
+        docs = fs_client.collection(getenv('FS_USER_GROUPS_COLLECTION')).where('__name__', 'in', group).stream()
         valid_uids = []
         for doc in docs:
-            print('doc.get("uid"):', doc.get('uid'))
-            valid_uids += list(doc.get('uid')) 
+            print('doc.get("uid"):', doc.get(getenv('FS_USER_GROUPS_UIDS_KEY')))
+            valid_uids += list(doc.get(getenv('FS_USER_GROUPS_UIDS_KEY'))) 
         print('valid_uids:', valid_uids)
         return (f'{uid}' in valid_uids)
     else:
@@ -96,7 +97,6 @@ def _access_secret_version(secret_id, version_id="latest"):
     Access the payload for the given secret version if one exists. The version
     can be a version number as a string (e.g. "5") or an alias (e.g. "latest").
     """
-    
 
     # Create the Secret Manager client.
     client = secretmanager.SecretManagerServiceClient()
@@ -106,17 +106,16 @@ def _access_secret_version(secret_id, version_id="latest"):
 
     # Access the secret version.
     response = client.access_secret_version(request={"name": name})
-
-    return json.loads(response.payload.data.decode("UTF-8"))
+    json_response = json.loads(response.payload.data.decode("UTF-8"))
+    return json_response
 
 
 def sign_in_with_email_and_password(email, password):
     secret = _access_secret_version(getenv("FB_CONFIG_SECRET"))
-    request_ref = f"https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key={secret['apiKey']}"
+    url = f"https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key={secret['apiKey']}"
     headers = {"content-type": "application/json; charset=UTF-8"}
     data = json.dumps({"email": email, "password": password, "returnSecureToken": True})
-
-    request_object = requests.post(request_ref, headers=headers, data=data)
+    request_object = requests.post(url, headers=headers, data=data)
     return request_object.json()
 
 
@@ -129,13 +128,22 @@ def check_email(email):
             aa@a.aa  - BAD
             aa@aa.a  - BAD 
     """
-    # https://www.geeksforgeeks.org/check-if-email-address-valid-or-not-in-python/
-    regex = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
-
+    # REGEX explanation:
+    # http://rumkin.com/software/email/rules.php
+    #   Email addresses are <localpart>@<domain>
+    #   localpart can be any ASCII from 0x21-0x7F
+    #   localpart cannot start or end with .
+    #   localpart cannot contain two dots: ..
+    #   domain can only contain letters and numbers
+    #   domain can be alphanumerics separated by dots
+    #   domain cannot start or end with .
+    #   domain cannot contain two dots: ..
+    regex = r'^(?!\.)(?:(?!\.\.)[\x21-\x7F])+(?:(?!\.)[\x21-\x7F])[@][\w]+([\w]+[.]?)*[.]\w{1,3}$'
     if re.search(regex, email):
         return True
     else:
         return False
+
 
 def check_password(password):
     """
@@ -143,8 +151,7 @@ def check_password(password):
         OR
     Password must be at least 20 characters and include lower, upper, number. 
     """
-    regex = r'^(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!#%*?&]{8,1024}$)|(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{20,1024}$)'
-    
+    regex = r'^(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!#%*?&]{8,}$)|(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{20,}$)'
     if re.search(regex, password): 
         return True 
     else: 

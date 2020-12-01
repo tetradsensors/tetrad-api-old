@@ -53,18 +53,36 @@ This will start building the containers that serve the website. You can check fo
   - `logging.warning('This is a warning message')`
   - `logging.error('This is an error message')`
   - `logging.critical('This is a critical message')`
+- `@ingroup(<group[s] [String/List]>)` decorator: Group or groups which can run this route. See "Firestore" for more details
 
 ### Firebase
 - Create new project in [Firebase](https://console.firebase.google.com), which comes from your GCP project
 - `Authentication`: Enable Email/Password, Google
 - "Public-facing project name": `Tetrad Sensor Networks, LLC`
-- `fbconfig.json` and `fbAdminConfig.json` firebase credentials files added to `Google Secrets Manager`. 
-- `apiKey` from `fbconfig.json` is in the URL to get a session token for a user. 
+- Download the `Firebase Config`JSON
+  - In Firebase: create a web app, then Settings -> General -> Web App -> Firebase SDK snippet (Config) -> copy and paste to JSON file and reformat as a valid JSON object.
+- `apiKey` from `fbconfig.json` is in the URL to get a session token for a user. Will only work if attached to a valid service account (which GAE instances are, by default).
+- `fbconfig.json` is stored in [Google Secret Manager](https://console.cloud.google.com/security/secret-manager?project=tetrad-296715&folder=&organizationId=) as `firebase_config`.
+
+### Firestore
+- Collection `user_groups`: Each document is a group (name of document)
+  - Field key `uids` is array of UIDs with access in this group
+
+### Secret Manager
+- First, enable the API
+- Add a new file:
+```bash
+gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
+```
+- Update GAE service account permissions: ``
 
 ### Service Accounts
+- Default app engine service account is used to validate all APIs. `tetrad-296715@appspot.gserviceaccount.com`
 
 ### BigQuery
 
+
 ### App Engine
+
 
 ### Google Cloud Functions

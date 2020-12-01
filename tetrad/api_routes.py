@@ -11,6 +11,7 @@ import pandas as pd
 import re 
 import requests
 from time import time 
+import logging 
 
 # Get env variables
 PROJECT_ID = getenv("PROJECT_ID")
@@ -65,9 +66,12 @@ VALID_QUERY_FIELDS = dict((k, TBL_MAP[k]) for k in
 
 
 @app.route("/api/liveSensors", methods=["GET"])
-@cache.cached(timeout=1800)
+# @cache.cached(timeout=1800)
 def liveSensors():
 
+    logging.error(request.view_args)
+    logging.error(request.args)
+    logging.error(vars(request.args))
     req_args = [
         'src'
         ]

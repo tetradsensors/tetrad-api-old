@@ -38,7 +38,7 @@ handlers:
 env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
-  PROJECT_ID: " tetrad-296715"
+  PROJECT_ID: "tetrad-296715"
   BIGQUERY_TABLE_SLC: "tetrad-296715.dev.slc"
   # BIGQUERY_TABLE_CHATT: "tetrad-296715.production.chatt"
   # BIGQUERY_TABLE_KC: "tetrad-296715.production.kc"
@@ -49,6 +49,8 @@ env_variables:
   LENGTH_SCALES_FILENAME: "model_files/length_scales.csv"
   FB_CONFIG_SECRET: "firebase_config"
   FB_ADMIN_CONFIG_SECRET: "firebase_admin_config"
+  FS_USER_GROUPS_COLLECTION: "user_groups"
+  FS_USER_GROUPS_UIDS_KEY: "uids"
   SPACE_KERNEL_FACTOR_PADDING: 2.0
   TIME_KERNEL_FACTOR_PADDING: 3.0
 
