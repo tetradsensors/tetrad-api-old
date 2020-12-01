@@ -66,7 +66,8 @@ This will start building the containers that serve the website. You can check fo
 
 ### Firestore
 - Collection `user_groups`: Each document is a group (name of document)
-  - Field key `uids` is array of UIDs with access in this group
+  - Group (document) names: `airuv2`, `admin`, `slc`, `chatt`, `ks`, `clev`
+  - Field key `uids` is array of Firebase User UIDs with access in this group
 
 ### Secret Manager
 - First, enable the API
