@@ -5,7 +5,11 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from tetrad import utils 
 from os import getenv, environ
-
+import google.cloud.logging 
+gcloud_logging_client = google.cloud.logging.Client()
+gcloud_logging_client.get_default_handler()
+gcloud_logging_client.setup_logging()
+import logging
 
 app = Flask(__name__)
 limiter = Limiter(

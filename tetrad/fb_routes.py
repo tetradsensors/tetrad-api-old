@@ -2,36 +2,28 @@ from firebase_admin import auth, initialize_app
 from flask import request, send_file
 from tetrad import app, fb_utils
 import traceback 
-import logging 
 from os import getenv
 from io import BytesIO
+import logging 
 
 firebase_app = initialize_app()
 
 
 @app.route("/api/signup", methods=["POST"])
 def signup():
-    # logging.error("Inside signup")
-    # logging.error(request.args)
-    # logging.error(request.form)
     email = request.form.get('email')
     password = request.form.get('password')
     if email is None or password is None:
-        # logging.warning('email or password is None')
         return 'ERROR: Missing email or password', 400
     if not fb_utils.check_email(email):
-        # logging.warning(f'email: [{email}] no good.')
         return 'ERROR: Invalid email.', 400
     if not fb_utils.check_password(password):
-        # logging.warning(f'password: [{password}] no good.')
         return 'ERROR: Invalid password. Password must be at least 8 characters and include: [a-z], [A-Z], [0-9], [@$!#%*?&]', 400
     try:
         user = auth.create_user(
                email=email,
                password=password
         )
-        # logging.debug(vars(user))
-        # logging.debug(user)
         return {'message': f'Successfully created user {user.uid}'}, 200
     except Exception as e:
         logging.error(traceback.print_exc())
@@ -65,13 +57,12 @@ def requestUid():
         return {'message': 'Error'}
 
 
-@app.route("/api/ota", methods=["GET"])
+@app.route("/api/ota", methods=["POST"])
 @fb_utils.ingroup('airuv2')
 def ota():
     """
     Download the blob 
     """
-    logging.error("ota route called!")
     binary_name = str(request.args.get('name'))
     if not binary_name.endswith('.bin'):
         return "Bad name", 418

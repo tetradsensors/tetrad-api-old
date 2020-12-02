@@ -40,6 +40,12 @@ For additional information, include the `verbosity` flag:
 gcloud app deploy --verbosity debug app.yaml
 ```
 
+Also, a fuller command:
+
+```bash
+gcloud app deploy --appyaml app.yaml --verbosity debug --no-cache --promote
+```
+
 This will start building the containers that serve the website. You can check for a successful deployment from the app engine versions dashboard in GCP. The app usually builds and deploys within a few minutes, but sometimes, Google can be a little slow with the building.
 
 **NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.

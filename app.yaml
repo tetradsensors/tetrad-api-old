@@ -20,9 +20,6 @@ runtime: python38
 
 instance_class: F2
 
-resources:
-  disk_size_gb: 20
-
 entrypoint: gunicorn -b :$PORT main:app
 
 handlers:
@@ -49,10 +46,10 @@ env_variables:
   LENGTH_SCALES_FILENAME: "model_files/length_scales.csv"
   FB_CONFIG_SECRET: "firebase_config"
   FB_ADMIN_CONFIG_SECRET: "firebase_admin_config"
+  FB_AUTH_HEADER: "Authorization"
   FS_USER_GROUPS_COLLECTION: "user_groups"
   FS_USER_GROUPS_UIDS_KEY: "uids"
   FS_USER_GROUPS_AIRUV2: "airuv2"
   GS_BUCKET_OTA: "airuv2_firmware"
   SPACE_KERNEL_FACTOR_PADDING: 2.0
   TIME_KERNEL_FACTOR_PADDING: 3.0
-
