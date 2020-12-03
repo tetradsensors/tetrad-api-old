@@ -65,7 +65,7 @@ VALID_QUERY_FIELDS = dict((k, TBL_MAP[k]) for k in
     ])
 
 
-@app.route("/api/liveSensors", methods=["GET"])
+@app.route("/api/liveSensors", methods=["GET"], subdomain=getenv('API_SUBDOMAIN'))
 # @cache.cached(timeout=1800)
 def liveSensors():
 
@@ -250,7 +250,7 @@ def liveSensors():
 #         "time": datetime.utcnow().strftime(utils.DATETIME_FORMAT)
 #     }]
 #     return jsonify({"data": measurements, "tags": tags})
-@app.route("/api/requestField", methods=["GET"])
+@app.route("/api/requestField", methods=["GET"], subdomain=getenv('API_SUBDOMAIN'))
 def requestField():
     """
     Arguments:
@@ -402,7 +402,7 @@ def _requestField(src_tbl, field, start, end, id_ls=None):
     return jsonify(utils.applyCorrectionFactorsToList(data)), 200
 
 
-@app.route("/api/requestFieldInRadius", methods=["GET"])
+@app.route("/api/requestFieldInRadius", methods=["GET"], subdomain=getenv('API_SUBDOMAIN'))
 def requestFieldInRadius():
 
     req_args = [

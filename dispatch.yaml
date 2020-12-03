@@ -1,0 +1,4 @@
+dispatch:
+  - url: "api.tetradsensors.com/*"
+    service: api
+  

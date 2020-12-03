@@ -16,6 +16,8 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
+service: api
+
 runtime: python38
 
 instance_class: F2
@@ -33,13 +35,14 @@ handlers:
   script: auto
 
 - url: /favicon\.ico
+  secure: always
   static_files: static/img/favicon.ico
   upload: static/img/favicon\.ico
 
 env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
-  PROJECT_ID: "tetrad-296715"
+  # PROJECT_ID: "tetrad-296715"
   BIGQUERY_TABLE_SLC: "tetrad-296715.dev.slc"
   # BIGQUERY_TABLE_CHATT: "tetrad-296715.production.chatt"
   # BIGQUERY_TABLE_KC: "tetrad-296715.production.kc"
@@ -57,3 +60,4 @@ env_variables:
   GS_BUCKET_OTA: "airuv2_firmware"
   SPACE_KERNEL_FACTOR_PADDING: 2.0
   TIME_KERNEL_FACTOR_PADDING: 3.0
+  API_SUBDOMAIN: ""

@@ -24,7 +24,6 @@ Icon
 Icon*
 Icon?
 *Icon
-
-# Model Generated Files
+crt
 ./*.txt
 local

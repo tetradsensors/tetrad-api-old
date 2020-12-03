@@ -96,7 +96,7 @@ def _access_secret_version(secret_id, version_id="latest"):
     client = secretmanager.SecretManagerServiceClient()
 
     # Build the resource name of the secret version.
-    name = f"projects/{getenv('PROJECT_ID')}/secrets/{secret_id}/versions/{version_id}"
+    name = f"projects/{getenv('GOOGLE_CLOUD_PROJECT')}/secrets/{secret_id}/versions/{version_id}"
 
     # Access the secret version.
     response = client.access_secret_version(request={"name": name})
