@@ -70,6 +70,8 @@ This will start building the containers that serve the website. You can check fo
   - In Firebase: create a web app, then Settings -> General -> Web App -> Firebase SDK snippet (Config) -> copy and paste to JSON file and reformat as a valid JSON object.
 - `apiKey` from `fbconfig.json` is in the URL to get a session token for a user. Will only work if attached to a valid service account (which GAE instances are, by default).
 - `fbconfig.json` is stored in [Google Secret Manager](https://console.cloud.google.com/security/secret-manager?project=tetrad-296715&folder=&organizationId=) as `firebase_config`.
+- Once you have a JWT token, add it to the the `Authentication` Header when you make your request
+- All API endpoints use HTTP `POST`, and require the `Authentication` header, so they will not work through the browser's address input. 
 
 ### Firestore
 - Collection `user_groups`: Each document is a group (name of document)
@@ -105,3 +107,8 @@ gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
 ### Domain and DNS Registrar
 - we are hosted through Google Domains
 - \[sub\]domains are currently: `tetradsensors.com`, `www.tetradsensors.com`, `api.tetradsensors.com`
+
+### OTA
+- airu devices perform OTA by communicating with the endpoint:
+`api.tetradsensors.com/ota/<filename.bin>`.
+- Devices must include a 
