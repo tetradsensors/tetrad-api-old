@@ -53,6 +53,7 @@ This will start building the containers that serve the website. You can check fo
 ## Tom's Notes
 
 ### Flask
+- Logging can be used, but the API must be enabled. Then the service account (`tetrad-296715@appspot.gserviceaccount.com`) needs the permissions: `Logging Admin`
 - `import logging`
   - `logging.debug('This is a debug message')`
   - `logging.info('This is an info message')`
@@ -81,7 +82,7 @@ This will start building the containers that serve the website. You can check fo
 ```bash
 gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
 ```
-- Update GAE service account permissions: ``
+- Update GAE service account permissions: `Secret Manager Secret Accessor`
 
 ### Service Accounts
 - Default app engine service account is used to validate all APIs. `tetrad-296715@appspot.gserviceaccount.com`
@@ -90,9 +91,17 @@ gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
 
 
 ### App Engine
-
+- Can attach a service to a subdomain through the `dispatch.yaml` file
+- in `app.yaml` include line: `service: <service-name>` to create a named service
+- There is a `default` service running. It's not possible to delete this service because GAE requires it internally. I've deployed an empty project to the service in a  `Standard Environment` with no web server, so it's impossible to communicate with this service. It's domain is `tetrad-296715.wm.r.appspot.com`, which is given automatically by GAE to the default service, and this domain cannot be changed. 
 
 ### Google Cloud Functions
 
-### SSL & Load Balancer
 
+### SSL & Load Balancer
+- SSL certificates are managed by Google, using Let's Encrpyt as the Certificate Authority. Certificates are auto-renewing. 
+- If we want/need to add a load balancer, I think we need to do custom SSL certs.
+
+### Domain and DNS Registrar
+- we are hosted through Google Domains
+- \[sub\]domains are currently: `tetradsensors.com`, `www.tetradsensors.com`, `api.tetradsensors.com`
