@@ -27,3 +27,5 @@ Icon?
 crt
 ./*.txt
 local
+.gitsecret/keys/random_seed
+!*.secret

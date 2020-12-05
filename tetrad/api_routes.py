@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from flask import request, jsonify
 import functools
 from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
-from tetrad import app, cache, fb_utils, gaussian_model_utils, limiter, utils
+from tetrad import app, cache, admin_utils, gaussian_model_utils, limiter, utils
 import json
 import numpy as np 
 from os import getenv
@@ -13,12 +13,13 @@ import requests
 from time import time 
 import logging 
 
+subdomain = f"{getenv('API_SUBDOMAIN')}.{getenv('DOMAIN_NAME')}"
+
 # Get env variables
-PROJECT_ID = getenv("PROJECT_ID")
+PROJECT_ID = getenv("GOOGLE_CLOUD_PROJECT")
 BIGQUERY_TABLE_SLC = getenv("BIGQUERY_TABLE_SLC")
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
-
 
 bq_client = Client(project=PROJECT_ID)
 elevation_interpolator = utils.setupElevationInterpolator()
@@ -65,7 +66,7 @@ VALID_QUERY_FIELDS = dict((k, TBL_MAP[k]) for k in
     ])
 
 
-@app.route("/api/liveSensors", methods=["GET"], subdomain=getenv('API_SUBDOMAIN'))
+@app.route("/api/liveSensors", methods=["GET"], subdomain=subdomain)
 # @cache.cached(timeout=1800)
 def liveSensors():
 
@@ -250,7 +251,7 @@ def liveSensors():
 #         "time": datetime.utcnow().strftime(utils.DATETIME_FORMAT)
 #     }]
 #     return jsonify({"data": measurements, "tags": tags})
-@app.route("/api/requestField", methods=["GET"], subdomain=getenv('API_SUBDOMAIN'))
+@app.route("/api/requestField", methods=["GET"], subdomain=subdomain)
 def requestField():
     """
     Arguments:
@@ -402,7 +403,7 @@ def _requestField(src_tbl, field, start, end, id_ls=None):
     return jsonify(utils.applyCorrectionFactorsToList(data)), 200
 
 
-@app.route("/api/requestFieldInRadius", methods=["GET"], subdomain=getenv('API_SUBDOMAIN'))
+@app.route("/api/requestFieldInRadius", methods=["GET"], subdomain=subdomain)
 def requestFieldInRadius():
 
     req_args = [
@@ -887,8 +888,8 @@ def _requestFieldInRadius(src_tbl, field, lat, lon, radius, start, end):
 #     return jsonify(estimates)
 
 #http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
-@app.route("/api/getEstimateMap", methods=["GET"])
-@fb_utils.ingroup('admin')
+@app.route("/api/getEstimateMap", methods=["GET"], subdomain=subdomain)
+@admin_utils.ingroup('admin')
 @limiter.limit('1/minute')
 def getEstimateMap():
     """
@@ -1008,6 +1009,7 @@ def getEstimateMap():
     print(f'Start: {start_str}\nEnd: {end_str}')
 
     sensor_data = _requestFieldInRadius(
+        src_tbl=SRC_MAP['SLC'],
         field='PM2_5',
         lat=lat,
         lon=lon,

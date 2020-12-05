@@ -1,15 +1,17 @@
-from firebase_admin import auth, initialize_app
+from firebase_admin import auth#, initialize_app
 from flask import request, send_file
-from tetrad import app, fb_utils
+from tetrad import app, admin_utils
 import traceback 
 from os import getenv
 from io import BytesIO
 import logging 
 
-firebase_app = initialize_app()
+
+# firebase_app = initialize_app()
+subdomain = f"{getenv('API_SUBDOMAIN')}.{getenv('DOMAIN_NAME')}"
 
 
-@app.route("/api/signup", methods=["POST"])
+@app.route("/api/signup", methods=["POST"], subdomain=subdomain)
 def signup():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -30,7 +32,7 @@ def signup():
         return str(repr(e)), 400
 
 
-@app.route("/api/requestToken", methods=["POST"])
+@app.route("/api/requestToken", methods=["GET"], subdomain=subdomain)
 def requestToken():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -43,7 +45,7 @@ def requestToken():
         return 'ERROR: There was an error logging in:' + repr(e), 400
 
 
-@app.route("/api/requestUid", methods=["POST"])
+@app.route("/api/requestUid", methods=["GET"], subdomain=subdomain)
 def requestUid():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -56,21 +58,3 @@ def requestUid():
     else:
         return {'message': 'Error'}
 
-
-@app.route("/api/ota", methods=["POST"])
-@fb_utils.ingroup('airuv2')
-def ota():
-    """
-    Download the blob 
-    """
-    binary_name = str(request.args.get('name'))
-    if not binary_name.endswith('.bin'):
-        return "Bad name", 418
-    binary = fb_utils.gs_get_blob(getenv('GS_BUCKET_OTA'), binary_name, dnl_type="bytes")
-    if binary == 404:
-        return "File does not exist", 404
-    if isinstance(binary, bytes):
-        binary = BytesIO(binary)
-        return send_file(binary, mimetype='application/octet-stream')
-    else:
-        return "Bad type", 418

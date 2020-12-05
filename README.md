@@ -50,6 +50,8 @@ This will start building the containers that serve the website. You can check fo
 
 **NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.
 
+-----------------
+
 ## Tom's Notes
 
 ### Flask
@@ -96,6 +98,7 @@ gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
 - Can attach a service to a subdomain through the `dispatch.yaml` file
 - in `app.yaml` include line: `service: <service-name>` to create a named service
 - There is a `default` service running. It's not possible to delete this service because GAE requires it internally. I've deployed an empty project to the service in a  `Standard Environment` with no web server, so it's impossible to communicate with this service. It's domain is `tetrad-296715.wm.r.appspot.com`, which is given automatically by GAE to the default service, and this domain cannot be changed. 
+- GAE will automatically cache file responses if you don't include an `Authorization` header
 
 ### Google Cloud Functions
 
@@ -103,12 +106,32 @@ gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
 ### SSL & Load Balancer
 - SSL certificates are managed by Google, using Let's Encrpyt as the Certificate Authority. Certificates are auto-renewing. 
 - If we want/need to add a load balancer, I think we need to do custom SSL certs.
+- Subdomain of `ota.tetradsensors.com` holds routes for airu file download, namely new certificates and firmware updates. 
+- In GAE, `ota.tetradsensors.com` was registered. "Disable managed security" was selected. Custom SSL Certificate was created with procedure outlined by Espressif in the project `esp-idf/examples/system/ota/README.md`. The procedure is as follows:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 3650 -node
+```
+  - Country Name (2 letter code) []:`US`
+  - State or Province Name (full name) []:`Utah`
+  - Locality Name (eg, city) []:`Salt Lake City`
+  - Organization Name (eg, company) []:`Tetrad Sensor Network Solutions, LLC`
+  - Organizational Unit Name (eg, section) []:`com`
+  - Common Name (eg, fully qualified host name) []:`ota.tetradsensors.com`
+  - Email Address []:`contact@tetradsensors.com`
+
+Then the private key needs to be converted to an RSA Private Key for GAE to accept it.:
+
+```bash
+openssl rsa -in ca_key.pem -out ca_key_rsa.pem
+```
+- Then they can be uploaded to GAE->Settings->SSL certificates->Upload a new certificate and apply the cert to the subdomain `ota.tetradsensors.com`
 
 ### Domain and DNS Registrar
 - we are hosted through Google Domains
 - \[sub\]domains are currently: `tetradsensors.com`, `www.tetradsensors.com`, `api.tetradsensors.com`
 
 ### OTA
-- airu devices perform OTA by communicating with the endpoint:
-`api.tetradsensors.com/ota/<filename.bin>`.
-- Devices must include a 
+- Subdomain `ota.tetradsensors.com`
+- All routes wrapped in `@check_creds`
+  - all AirUs use the same <username:password> in `Authorization` header 

@@ -60,4 +60,6 @@ env_variables:
   GS_BUCKET_OTA: "airuv2_firmware"
   SPACE_KERNEL_FACTOR_PADDING: 2.0
   TIME_KERNEL_FACTOR_PADDING: 3.0
-  API_SUBDOMAIN: ""
+  DOMAIN_NAME: "tetradsensors.com"
+  API_SUBDOMAIN: "api"
+  OTA_SUBDOMAIN: "ota"
