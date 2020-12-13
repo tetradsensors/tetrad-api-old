@@ -4,22 +4,29 @@ from tetrad import app, admin_utils
 import traceback 
 from os import getenv
 from io import BytesIO
-import logging 
+import google.cloud.logging 
+gcloud_logging_client = google.cloud.logging.Client()
+gcloud_logging_client.get_default_handler()
+gcloud_logging_client.setup_logging()
+import logging
+logging.error("Inside fb_routes.py")
 
 
 # firebase_app = initialize_app()
-subdomain = f"{getenv('API_SUBDOMAIN')}.{getenv('DOMAIN_NAME')}"
 
 
-@app.route("/api/signup", methods=["POST"], subdomain=subdomain)
+@app.route("/signup", methods=["POST"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/signup", methods=["POST"])
 def signup():
+    logging.error("HTTP_HOST: " + request.environ.get('HTTP_HOST'))
+    logging.error("SERVER_NAME: " + app.config['SERVER_NAME'])
     email = request.form.get('email')
     password = request.form.get('password')
     if email is None or password is None:
         return 'ERROR: Missing email or password', 400
-    if not fb_utils.check_email(email):
+    if not admin_utils.check_email(email):
         return 'ERROR: Invalid email.', 400
-    if not fb_utils.check_password(password):
+    if not admin_utils.check_password(password):
         return 'ERROR: Invalid password. Password must be at least 8 characters and include: [a-z], [A-Z], [0-9], [@$!#%*?&]', 400
     try:
         user = auth.create_user(
@@ -32,12 +39,13 @@ def signup():
         return str(repr(e)), 400
 
 
-@app.route("/api/requestToken", methods=["GET"], subdomain=subdomain)
+@app.route("/requestToken", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/requestToken", methods=["GET"])
 def requestToken():
     email = request.form.get('email')
     password = request.form.get('password')
     try:
-        user = fb_utils.sign_in_with_email_and_password(email, password)
+        user = admin_utils.sign_in_with_email_and_password(email, password)
         jwt = user['idToken']
         return {'token': jwt}, 200
     except Exception as e:
@@ -45,12 +53,13 @@ def requestToken():
         return 'ERROR: There was an error logging in:' + repr(e), 400
 
 
-@app.route("/api/requestUid", methods=["GET"], subdomain=subdomain)
+@app.route("/requestUid", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/api/requestUid", methods=["GET"])
 def requestUid():
     email = request.form.get('email')
     password = request.form.get('password')
     try:
-        user = fb_utils.sign_in_with_email_and_password(email, password)
+        user = admin_utils.sign_in_with_email_and_password(email, password)
     except Exception as e:
         return {'message': str(e)}, 400
     if user['registered']:

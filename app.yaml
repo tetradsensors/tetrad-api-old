@@ -16,7 +16,7 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
-service: api
+service: backend
 
 runtime: python38
 
@@ -37,12 +37,12 @@ handlers:
 - url: /favicon\.ico
   secure: always
   static_files: static/img/favicon.ico
-  upload: static/img/favicon\.ico
+  upload: static/img/favicon\.ico 
 
 env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
-  # PROJECT_ID: "tetrad-296715"
+  # PROJECT_ID: "tetrad-296715"   # Stored by default in GOOGLE_CLOUD_PROJECT
   BIGQUERY_TABLE_SLC: "tetrad-296715.dev.slc"
   # BIGQUERY_TABLE_CHATT: "tetrad-296715.production.chatt"
   # BIGQUERY_TABLE_KC: "tetrad-296715.production.kc"
@@ -54,6 +54,7 @@ env_variables:
   FB_CONFIG_SECRET: "firebase_config"
   FB_ADMIN_CONFIG_SECRET: "firebase_admin_config"
   FB_AUTH_HEADER: "Authorization"
+  FB_AIRU_UID: "FNlnrFd85MMTRcVudXcc97eLL3v2"
   FS_USER_GROUPS_COLLECTION: "user_groups"
   FS_USER_GROUPS_UIDS_KEY: "uids"
   FS_USER_GROUPS_AIRUV2: "airuv2"
@@ -61,5 +62,6 @@ env_variables:
   SPACE_KERNEL_FACTOR_PADDING: 2.0
   TIME_KERNEL_FACTOR_PADDING: 3.0
   DOMAIN_NAME: "tetradsensors.com"
-  API_SUBDOMAIN: "api"
-  OTA_SUBDOMAIN: "ota"
+  SUBDOMAIN_API: "api"
+  SUBDOMAIN_OTA: "ota"
+  

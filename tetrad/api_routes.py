@@ -11,9 +11,13 @@ import pandas as pd
 import re 
 import requests
 from time import time 
-import logging 
+import google.cloud.logging 
+gcloud_logging_client = google.cloud.logging.Client()
+gcloud_logging_client.get_default_handler()
+gcloud_logging_client.setup_logging()
+import logging
+logging.error("Inside api_routes.py")
 
-subdomain = f"{getenv('API_SUBDOMAIN')}.{getenv('DOMAIN_NAME')}"
 
 # Get env variables
 PROJECT_ID = getenv("GOOGLE_CLOUD_PROJECT")
@@ -66,7 +70,7 @@ VALID_QUERY_FIELDS = dict((k, TBL_MAP[k]) for k in
     ])
 
 
-@app.route("/api/liveSensors", methods=["GET"], subdomain=subdomain)
+@app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 # @cache.cached(timeout=1800)
 def liveSensors():
 
@@ -251,7 +255,9 @@ def liveSensors():
 #         "time": datetime.utcnow().strftime(utils.DATETIME_FORMAT)
 #     }]
 #     return jsonify({"data": measurements, "tags": tags})
-@app.route("/api/requestField", methods=["GET"], subdomain=subdomain)
+
+
+@app.route("/requestField", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 def requestField():
     """
     Arguments:
@@ -403,7 +409,7 @@ def _requestField(src_tbl, field, start, end, id_ls=None):
     return jsonify(utils.applyCorrectionFactorsToList(data)), 200
 
 
-@app.route("/api/requestFieldInRadius", methods=["GET"], subdomain=subdomain)
+@app.route("/requestFieldInRadius", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 def requestFieldInRadius():
 
     req_args = [
@@ -888,7 +894,7 @@ def _requestFieldInRadius(src_tbl, field, lat, lon, radius, start, end):
 #     return jsonify(estimates)
 
 #http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
-@app.route("/api/getEstimateMap", methods=["GET"], subdomain=subdomain)
+@app.route("/getEstimateMap", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 @admin_utils.ingroup('admin')
 @limiter.limit('1/minute')
 def getEstimateMap():

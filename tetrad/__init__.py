@@ -12,16 +12,22 @@ gcloud_logging_client.get_default_handler()
 gcloud_logging_client.setup_logging()
 import logging
 
+logging.error("Inside __init__.py setup")
+
+# app = Flask(__name__)
 app = Flask(__name__, subdomain_matching=True)
+app.config['SERVER_NAME'] = getenv('DOMAIN_NAME')
 app.config["CACHE_TYPE"] = "simple"
 app.config["CACHE_DEFAULT_TIMEOUT"] = 1
-app.config['SERVER_NAME'] = "tetradsensors.com"
+
+
+init(app)
+
 limiter = Limiter(
     app, 
     key_func=get_remote_address,
-    default_limits=['200 per day', '50 per hour']
+    default_limits=['2000 per day']
 )
-init(app)
 
 firebase_app = initialize_app()
 

@@ -10,39 +10,56 @@ from flask import request
 import re
 import logging 
 import base64
+import google.cloud.logging 
+gcloud_logging_client = google.cloud.logging.Client()
+gcloud_logging_client.get_default_handler()
+gcloud_logging_client.setup_logging()
+import logging
+logging.error("Inside admin_utils.py")
 
 
 fs_client = firestore.Client()
 
 
-def check_creds(f): 
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        
-        # Check for header
-        if not request.headers.get(getenv('FB_AUTH_HEADER')):
-            return f"No {getenv('FB_AUTH_HEADER')} supplied. Header must look like <br><br>{getenv('FB_AUTH_HEADER')}: Basic <email:password><br><br> where <email:password> are Base64 encoded.", 401
-        
-        # Get email, password
-        try:
-            userpass = request.headers.get(getenv('FB_AUTH_HEADER')).split('Basic ')[1]
-            email, password = base64.b64decode(userpass.encode()).split(':')
-        except IndexError:
-            return f"Bad formatting for {getenv('FB_AUTH_HEADER')} header. Header must look like <br><br>{getenv('FB_AUTH_HEADER')}: Basic <email:password><br><br> where <email:password> are Base64 encoded.", 401
-        
-        # Check email, password
-        if (not check_email(email)) or (not check_password(password)):
-            return "Invalid formatting for email or password", 401
+def check_creds(uid):
+    """ 
+    Check that the supplied email/password from header match
+    the UID supplied here.
+    """
+    def inner(f): 
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            
+            # Check for header
+            if not request.headers.get(getenv('FB_AUTH_HEADER')):
+                return f"No {getenv('FB_AUTH_HEADER')} supplied. Header must look like <br><br>{getenv('FB_AUTH_HEADER')}: Basic <email:password><br><br> where <email:password> are Base64 encoded.", 401
+            
+            # Get email, password
+            try:
+                userpass = request.headers.get(getenv('FB_AUTH_HEADER')).split('Basic ')[1]
+                email, password = base64.b64decode(userpass.encode()).decode().split(':')
+            except:
+                return f"Bad formatting for {getenv('FB_AUTH_HEADER')} header. Header must look like <br><br>{getenv('FB_AUTH_HEADER')}: Basic <email:password><br><br> where <email:password> are Base64 encoded.", 401
+            
+            # Check email, password
+            if (not check_email(email)) or (not check_password(password)):
+                return "Invalid formatting for email or password", 401
 
-        # Sign them in and check the response
-        try:
-            sign_in_with_email_and_password(email, password)['idToken']
-        except Exception as e:
-            return "Could not sign in user. <b>ERROR:</b><br><br>" + repr(e), 401
+            # Sign them in and check the response
+            try:
+                user = sign_in_with_email_and_password(email, password)
+                user_uid = user['localId']
+            except Exception as e:
+                return "Could not sign in user. <b>ERROR:</b><br><br>" + repr(e), 401
 
-        # Sign-in was successful, execute the calling function. 
-        return f(*args, **kwargs)
-    return wrapper
+            # Check that the ID matches
+            if user_uid != uid:
+                return "User is not validated to run this route", 401
+
+            # Sign-in was successful, execute the calling function. 
+            return f(*args, **kwargs)
+        return wrapper
+    return inner
 
 
 def ingroup(group_or_groups): 
