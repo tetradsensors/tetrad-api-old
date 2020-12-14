@@ -4,6 +4,9 @@ config.production.py
 .env
 .env.prod
 ignite/ignite.json
+ignite/fbAdminConfig.json
+ignite/fbconfig.json
+gcp-tasks/estimate_map_bridge/ignite.json
 
 # Auto generated files
 ignite/static/.webassets-cache
@@ -18,8 +21,12 @@ env/
 *.DS_Store
 .vscode/
 
-# Model Generated Files
-*.txt
-ignite/ignite.json
-ignite/fbAdminConfig.json
-ignite/fbconfig.json
+Icon
+Icon*
+Icon?
+*Icon
+crt
+./*.txt
+local
+.gitsecret/keys/random_seed
+!*.secret

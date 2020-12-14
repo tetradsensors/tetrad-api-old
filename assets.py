@@ -14,8 +14,8 @@ def init(app=None):
     app = app or Flask(__name__)
     with app.app_context():
         env = Environment(app)
-        env.directory = 'ignite/static'
-        env.load_path = [path.join(path.dirname(__file__), 'ignite/static')]
+        env.directory = 'tetrad/static'
+        env.load_path = [path.join(path.dirname(__file__), 'tetrad/static')]
         env.auto_build = False  # App Engine doesn't support automatic rebuilding.
         env.versions = 'hash'
         env.manifest = 'file'

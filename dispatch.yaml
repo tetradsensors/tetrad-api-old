@@ -1,0 +1,7 @@
+dispatch:
+  - url: "api.tetradsensors.com/*"
+    service: backend
+
+  - url: "ota.tetradsensors.com/*"
+    service: backend
+  
