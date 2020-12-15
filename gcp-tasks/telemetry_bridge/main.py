@@ -6,6 +6,7 @@ This Cloud function is responsible for:
 import base64
 import json
 import logging
+from hashlib import md5
 import traceback
 from datetime import datetime
 from google.cloud import bigquery
@@ -35,21 +36,27 @@ def ps_bq_bridge(event, context):
         try:
             _insert_into_bigquery(event, context)
         except Exception:
-            _handle_error(event['deviceId'])
+            _handle_error(event)
 
 
 def _insert_into_bigquery(event, context):
     data = base64.b64decode(event['data']).decode('utf-8')
     
-    deviceId = event['attributes']['deviceId'][1:]
+    try:
+        deviceId = event['attributes']['deviceId'][1:]
+    except:
+        _handle_error(event)
     
     row = json.loads(data)
      
     row['DeviceID'] = deviceId
 
-    # Uploads from SD card send a timestamp, normal messages do not
-    if 'Timestamp' not in row:
-        row['Timestamp'] = context.timestamp
+    try:
+        row['Timestamp']
+    except:
+        _handle_error(event)
+
+    row_ids = [md5((str(row['Timestamp']) + str(row['DeviceID'])).encode()).hexdigest()]
 
     # Replace error codes with None - blank in BigQuery
     for k in row:
@@ -62,6 +69,7 @@ def _insert_into_bigquery(event, context):
     table = BQ.dataset(BQ_DATASET).table(BQ_TABLE)
     errors = BQ.insert_rows_json(table,
                                  json_rows=[row],
+                                 row_ids=row_ids,
                                  retry=retry.Retry(deadline=30))
     if errors != []:
         raise BigQueryError(errors)
@@ -72,8 +80,12 @@ def _handle_success(deviceID):
     logging.info(message)
 
 
-def _handle_error(deviceID):
-    message = 'Error streaming from device \'%s\'. Cause: %s' % (deviceID, traceback.format_exc())
+def _handle_error(event):
+    if 'deviceId' in event['attributes']:
+        deviceId = event['attributes']['deviceId']
+    else:
+        deviceId = 'NO DEVICE ID'
+    message = 'Error streaming from device \'%s\'. Cause: %s' % (deviceId, traceback.format_exc())
     logging.error(message)
 
 

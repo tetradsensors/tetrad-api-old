@@ -19,7 +19,7 @@ app = Flask(__name__, subdomain_matching=True)
 app.config['SERVER_NAME'] = getenv('DOMAIN_NAME')
 app.config["CACHE_TYPE"] = "simple"
 app.config["CACHE_DEFAULT_TIMEOUT"] = 1
-
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1000 * 1000
 
 init(app)
 
@@ -34,4 +34,4 @@ firebase_app = initialize_app()
 cache = Cache(app)
 
 # Load our many route files
-from tetrad import api_routes, basic_routes, fb_routes, ota_routes
+from tetrad import api_routes, basic_routes, fb_routes, iot_routes
