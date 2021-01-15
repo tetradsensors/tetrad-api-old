@@ -142,6 +142,82 @@ def liveSensors():
 
     return jsonify(data), 200
 
+# ***********************************************************
+# Function: request_data_flask(d) - used to populate the map with sensors
+# Called by slider.js
+# Parameter:
+# Return: Last recorded sensor input from all sensors in the DB
+# ***********************************************************
+@app.route("/request_data_flask", methods=['GET'])
+def request_data_flask(d):
+    sensor_list = []
+ 
+    logging.error(request.view_args)
+    logging.error(request.args)
+    logging.error(vars(request.args))
+    req_args = [
+        'src'
+        ]
+
+    r = utils.checkArgs(request.args, req_args)
+    if r[1] != 200: 
+        return r
+
+    src = request.args.get('src')
+    if src not in SRC_MAP:
+        return jsonify({'Error': f"argument 'src' must be included from {', '.join(list(SRC_MAP.keys()))}"}), 400
+    sensors_table = SRC_MAP[request.args.get('src').upper()]
+
+    # get the latest sensor data from each sensor
+    q = ("SELECT `" + sensor_table + "`.DEVICEID, PM2_5, Latitude, Longitude, Timestamp "
+         "FROM `" + sensor_table + "` "
+         "INNER JOIN (SELECT DEVICEID, MAX(Timestamp) as maxts "
+         "FROM `" + sensor_table + "` GROUP BY DEVICEID) mr "
+         "ON `" + sensor_table + "`.DEVICEID = mr.DEVICEID AND Timestamp = maxts WHERE Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 DAY);")
+
+    query_job = bq_client.query(q)
+    rows = query_job.result()  # Waits for query to finish
+    for row in rows:
+        sensor_list.append({"DEVICEID": str(row.DEVICEID),
+                            "Latitude": row.Latitude,
+                            "Longitude": row.Longitude,
+			    "Timestamp": row.Timestamp,
+                            "PM2_5": row.PM2_5})
+
+    
+
+    return jsonify(sensor_list), 200
+
+
+
+# ***********************************************************
+# Function: request_historical(d)
+# Called by historical_data.js
+# Parameter: JSON format containing DEVICE_ID, DAYS (number of days to query ), and CITY ( to be discussed )
+# Return: JSON sensor data for the given sensor and given number of days
+# ***********************************************************
+@app.route("/request_historical/<d>/", methods=['GET'])
+def request_historical(d):
+    sensor_list = []
+    json_data = json.loads(d)
+    id = json_data["DEVICEID"]
+    days = str(json_data["DAYS"])
+    sensor_table = "tetrad-296715.telemetry." + json_data["CITY"]
+    # get the latest sensor data from each sensor
+    q = ("SELECT DATETIME_TRUNC(DATETIME(Timestamp, 'America/Denver'), HOUR) AS D, ROUND(AVG(PM2_5),2) AS PM2_5 "
+        "FROM `" + sensor_table + "` "
+        "WHERE DEVICEID=\'" + id + "\' "
+        "AND Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL " + days + " DAY) "
+        "GROUP BY D ORDER BY D;")
+
+    query_job = bq_client.query(q)
+    rows = query_job.result()  # Waits for query to finish
+    for row in rows:
+        sensor_list.append({"D_TIME": row.D,
+                            "PM2_5": row.PM2_5})
+
+    return jsonify(sensor_list), 200
+
 
 # @app.route("/api/timeAggregatedDataFrom", methods=["GET"])
 # def timeAggregatedDataFrom():
