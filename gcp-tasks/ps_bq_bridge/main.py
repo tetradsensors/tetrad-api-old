@@ -5,6 +5,7 @@ This Cloud function is responsible for:
 '''
 import base64
 import json
+from os import getenv
 import logging
 import traceback
 from datetime import datetime
@@ -12,23 +13,48 @@ from google.cloud import bigquery
 from google.api_core import retry
 import pytz
 
-
-BQ_DATASET = "telemetry"
-BQ_TABLE = "dev"
-BQ = bigquery.Client()
+bq = bigquery.Client()
 
 METRIC_ERROR_MAP = {
-    'Latitude':     0,
-    'Longitude':    0,
-    'Elevation':    0,
-    'PM1':          -1,
-    'PM2_5':        -1,
-    'PM10':         -1,
-    'Temperature':  -1000,
-    'Humidity':     -1000,
-    'MicsRED':      10000,
-    'MicsNOX':      10000,
+    getenv("FIELD_ELE"):    0,
+    getenv("FIELD_PM1"):    -1,
+    getenv("FIELD_PM2"):    -1,
+    getenv("FIELD_PM10"):   -1,
+    getenv("FIELD_TEMP"):   -1000,
+    getenv("FIELD_HUM"):    -1000,
+    getenv("FIELD_RED"):    10000,
+    getenv("FIELD_NOX"):    10000,
 }
+
+# http://www.eecs.umich.edu/courses/eecs380/HANDOUTS/PROJ2/InsidePoly.html
+def inPoly(p, poly):
+    """
+    NOTE Polygon can't cross Anti-Meridian
+    @param p: Point as (Lat, Lon)
+    @param poly: list of (Lat,Lon) points. Neighboring polygon vertices indicate lines
+    @return: True if in poly, False otherwise
+    """
+    c = False
+    pp = list(poly)
+    N = len(poly)
+    for i in range(N):
+        j = (i - 1) % N
+        if ((((pp[i][0] <= p[0]) and (p[0] < pp[j][0])) or
+             ((pp[j][0] <= p[0]) and (p[0] < pp[i][0]))) and
+            (p[1] < (pp[j][1] - pp[i][1]) * (p[0] - pp[i][0]) / (pp[j][0] - pp[i][0]) + pp[i][1])):
+            c = not c
+    return c
+
+
+def pointToTableName(p):
+    if not sum(p):
+        return getenv('BIGQUERY_TABLE_BADGPS')
+    polys = json.load(open(getenv('BOUNDING_POLYS_FILENAME')))
+    for table_name, poly in polys.items():
+        if inPoly(p, poly):
+            return table_name
+    return getenv('BIGQUERY_TABLE_GLOBAL')
+
 
 def ps_bq_bridge(event, context):
     if 'data' in event:
@@ -45,22 +71,24 @@ def _insert_into_bigquery(event, context):
     
     row = json.loads(data)
      
-    row['DeviceID'] = deviceId
+    row[getenv("FIELD_ID")] = deviceId
 
     # Uploads from SD card send a timestamp, normal messages do not
-    if 'Timestamp' not in row:
-        row['Timestamp'] = context.timestamp
+    if getenv("FIELD_TS") not in row:
+        row[getenv("FIELD_TS")] = context.timestamp
 
     # Replace error codes with None - blank in BigQuery
     for k in row:
         if k in METRIC_ERROR_MAP:
             if row[k] == METRIC_ERROR_MAP[k]:
                 row[k] = None 
-                if k == 'MicsNOX':
-                    row['MicsHeater'] = None
+                if k == getenv("FIELD_NOX"):
+                    row[getenv("FIELD_HTR")] = None
                     
-    table = BQ.dataset(BQ_DATASET).table(BQ_TABLE)
-    errors = BQ.insert_rows_json(table,
+    table_name = pointToTableName((row[getenv("FIELD_LAT")], row[getenv("FIELD_LON")]))
+    logging.info("Table: " + table_name)
+    table = bq.dataset(getenv('BIGQUERY_DATASET')).table(table_name)
+    errors = bq.insert_rows_json(table,
                                  json_rows=[row],
                                  retry=retry.Retry(deadline=30))
     if errors != []:
