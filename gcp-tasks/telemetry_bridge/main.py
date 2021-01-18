@@ -31,6 +31,9 @@ METRIC_ERROR_MAP = {
     'MicsNOX':      10000,
 }
 
+REQUIRED = ['Timestamp', 'DeviceID']
+
+
 def ps_bq_bridge(event, context):
     if 'data' in event:
         try:
@@ -41,6 +44,12 @@ def ps_bq_bridge(event, context):
 
 def _insert_into_bigquery(event, context):
     data = base64.b64decode(event['data']).decode('utf-8')
+
+    try:
+        with open('local.txt') as f:
+            print('local file read:', f.read())
+    except:
+        _handle_error(event)
     
     try:
         deviceId = event['attributes']['deviceId'][1:]
@@ -48,11 +57,20 @@ def _insert_into_bigquery(event, context):
         _handle_error(event)
     
     row = json.loads(data)
-     
-    row['DeviceID'] = deviceId
+
+    for req in REQUIRED:
+        try:
+            assert(req in row)
+        except:
+            _handle_error(event)
+            
+    try:
+        assert(deviceId == row['DeviceID'])
+    except:
+        _handle_error(event)
 
     try:
-        row['Timestamp']
+        assert(row['Timestamp'] > 1500000000)
     except:
         _handle_error(event)
 

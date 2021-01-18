@@ -52,5 +52,9 @@
     {
         "name": "MicsHeater",
         "type": "BOOLEAN"
+    },
+    {
+        "name": "Flags",
+        "type": "INTEGER"
     }
 ]
