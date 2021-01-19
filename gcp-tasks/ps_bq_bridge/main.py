@@ -10,6 +10,7 @@ import logging
 import traceback
 from datetime import datetime
 from google.cloud import bigquery
+from google.cloud import firestore 
 from google.api_core import retry
 import pytz
 
@@ -56,6 +57,15 @@ def pointToTableName(p):
     return getenv('BIGQUERY_TABLE_GLOBAL')
 
 
+def addToFirestore(mac, table):
+    fs_client = firestore.Client()
+    doc_ref = fs_client.collection(getenv("FS_COL")).document(mac)
+    if doc_ref.get().exists:
+        doc_ref.update({
+            getenv('FS_FIELD_LAST_BQ_TABLE'): table
+        })
+
+
 def ps_bq_bridge(event, context):
     if 'data' in event:
         try:
@@ -67,7 +77,7 @@ def ps_bq_bridge(event, context):
 def _insert_into_bigquery(event, context):
     data = base64.b64decode(event['data']).decode('utf-8')
     
-    deviceId = event['attributes']['deviceId'][1:]
+    deviceId = event['attributes']['deviceId'][1:].upper()
     
     row = json.loads(data)
      
@@ -84,15 +94,25 @@ def _insert_into_bigquery(event, context):
                 row[k] = None 
                 if k == getenv("FIELD_NOX"):
                     row[getenv("FIELD_HTR")] = None
-                    
+
+    # Use GPS to get the correct table         
     table_name = pointToTableName((row[getenv("FIELD_LAT")], row[getenv("FIELD_LON")]))
-    logging.info("Table: " + table_name)
+
+    # Update GPS coordinates (so we aren't storing erroneous 0.0's in database)
+    if not sum([row[getenv("FIELD_LAT")], row[getenv("FIELD_LON")]]):
+        row[getenv("FIELD_LAT")] = None
+        row[getenv("FIELD_LON")] = None
+
+    # Add the entry to the appropriate BigQuery Table
     table = bq.dataset(getenv('BIGQUERY_DATASET')).table(table_name)
     errors = bq.insert_rows_json(table,
                                  json_rows=[row],
                                  retry=retry.Retry(deadline=30))
     if errors != []:
         raise BigQueryError(errors)
+
+    # (If no insert errors) Update FireStore entry for MAC address
+    addToFirestore(deviceId, table_name)
 
 
 def _handle_success(deviceID):
