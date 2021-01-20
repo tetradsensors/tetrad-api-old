@@ -97,7 +97,7 @@ def applyCorrectionFactor(factors, data_timestamp, data):
     return data
 
 
-def applyCorrectionFactorsToList(data_list, pm_key="PM2_5"):
+def applyCorrectionFactorsToList(data_list, pm_key=None):
     """Apply correction factors (in place) to PM2.5 data in data_list"""
     
     # Open the file and get correction factors
@@ -132,6 +132,53 @@ def applyCorrectionFactorsToList(data_list, pm_key="PM2_5"):
         # if not found:
         #     print('\nNo correction factor found for ', datum['Timestamp'])
     return data_list
+
+
+def tuneData(data:list, pm_key=None, temp_key=None, hum_key=None):
+    """ Clean data and apply correction factors """
+    # Open the file and get correction factors
+    with open(getenv("CORRECTION_FACTORS_FILENAME")) as csv_file:
+        read_csv = csv_reader(csv_file, delimiter=',')
+        rows = [row for row in read_csv]
+        header = rows[0]
+        rows = rows[1:]
+        correction_factors = []
+        for row in rows:
+            rowDict = {name: elem for elem, name in zip(row, header)}
+            rowDict['start_date'] = parseDateString(rowDict['start_date'])
+            rowDict['end_date'] = parseDateString(rowDict['end_date'])
+            rowDict['3003_slope'] = float(rowDict['3003_slope'])
+            rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
+            correction_factors.append(rowDict)
+        
+    goodPM, goodTemp, goodHum = True, True, True
+    for datum in data:
+        if pm_key and goodPM:
+            try:
+                if (datum[pm_key] == getenv("PM_BAD_FLAG")) or (datum[pm_key] >= getenv("PM_BAD_THRESH")):
+                    datum[pm_key] = None
+                else:
+                    datum[pm_key] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum[pm_key])
+            except:
+                goodPM = False
+
+        if temp_key and goodTemp:
+            try:
+                if datum[temp_key] == getenv("TEMP_BAD_FLAG"):
+                    datum[temp_key] = None 
+            except:
+                goodTemp = False
+
+        if hum_key and goodHum:
+            try:
+                if datum[hum_key] == getenv("HUM_BAD_FLAG"):
+                    datum[hum_key] = None 
+            except:
+                goodHum = False
+        
+    return data
+
+
         
 
 def loadLengthScales():

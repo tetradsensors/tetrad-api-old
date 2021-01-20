@@ -21,7 +21,14 @@ logging.error("Inside api_routes.py")
 
 # Get env variables
 PROJECT_ID = getenv("GOOGLE_CLOUD_PROJECT")
-BIGQUERY_TABLE_SLC = getenv("BIGQUERY_TABLE_SLC")
+BQ_DATASET_TELEMETRY = getenv("BQ_DATASET_TELEMETRY") 
+BQ_TABLE_SLC    = getenv("BQ_TABLE_SLC")
+BQ_TABLE_CHATT  = getenv("BQ_TABLE_CHATT")
+BQ_TABLE_CLEV   = getenv("BQ_TABLE_CLEV")
+BQ_TABLE_KC     = getenv("BQ_TABLE_KC")
+BQ_TABLE_BADGPS = getenv("BQ_TABLE_BADGPS")
+BQ_TABLE_GLOBAL = getenv("BQ_TABLE_GLOBAL")
+
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
 
@@ -29,33 +36,35 @@ bq_client = Client(project=PROJECT_ID)
 elevation_interpolator = utils.setupElevationInterpolator()
 
 SRC_MAP = {
-    "SLC": BIGQUERY_TABLE_SLC,
+    "SLC":    BQ_TABLE_SLC,
+    "CHATT":  BQ_TABLE_CHATT,
+    "CLEV":   BQ_TABLE_CLEV,
+    "KC":     BQ_TABLE_KC,
+    "BADGPS": BQ_TABLE_BADGPS,
+    "GLOBAL": BQ_TABLE_GLOBAL,
+    "ALL":    None,
 }
 
-# VALID_SENSOR_SOURCES = ["AirU", "all"]
-
-# keys = local fields, values = table fields
-TBL_MAP = {
-    "Elevation": "Elevation",
-    "MICS_RED": "MICS_RED",
-    "Humidity": "Humidity",
-    "DeviceID": "DeviceID",
-    "Latitude": "Latitude",
-    "Longitude": "Longitude",
-    "MICS_Heater": "MICS_HEATER",
-    "MICS_OX": "MICS_OX",
-    "PM1": "PM1",
-    "PM10": "PM10",
-    "PM2_5": "PM2_5",
-    # "POSIX": "POSIX",
-    # "Uptime": "SecActive",
-    # "VersionInfo": "SensorModel",
-    "Temperature": "Temperature",
-    # "topic": "topic",
-    "Timestamp": "Timestamp",
+# keys = local fields, values = BQ table fields
+# Use local keys inside this file, like: 
+#   print(FIELD_MAP["Timestamp"])
+FIELD_MAP = {
+    "FIELD_TS":     getenv("FIELD_TS"),
+    "FIELD_ID":     getenv("FIELD_ID"),
+    "FIELD_LAT":    getenv("FIELD_LAT"),
+    "FIELD_LON":    getenv("FIELD_LON"),
+    "FIELD_ELE":    getenv("FIELD_ELE"),
+    "FIELD_PM1":    getenv("FIELD_PM1"),
+    "FIELD_PM2":    getenv("FIELD_PM2"),
+    "FIELD_PM10":   getenv("FIELD_PM10"),
+    "FIELD_TEMP":   getenv("FIELD_TEMP"),
+    "FIELD_HUM":    getenv("FIELD_HUM"),
+    "FIELD_RED":    getenv("FIELD_RED"),
+    "FIELD_NOX":    getenv("FIELD_NOX"),
+    "FIELD_HTR":    getenv("FIELD_HTR"),
 }
 
-VALID_QUERY_FIELDS = dict((k, TBL_MAP[k]) for k in 
+VALID_QUERY_FIELDS = dict((k, FIELD_MAP[k]) for k in 
     [
         "PM1",
         "PM2_5",
@@ -65,8 +74,6 @@ VALID_QUERY_FIELDS = dict((k, TBL_MAP[k]) for k in
         "MICS_RED",
         "MICS_OX",
         "MICS_Heater",
-        # "Uptime",
-        # "VersionInfo",
     ])
 
 
@@ -78,31 +85,91 @@ def liveSensors():
     logging.error(request.args)
     logging.error(vars(request.args))
     req_args = [
-        'src'
+        'src',
+        'field'
         ]
 
     r = utils.checkArgs(request.args, req_args)
     if r[1] != 200: 
         return r
 
-    src = request.args.get('src')
-    if src not in SRC_MAP:
-        return jsonify({'Error': f"argument 'src' must be included from {', '.join(list(SRC_MAP.keys()))}"}), 400
-    src_tbl = SRC_MAP[request.args.get('src').upper()]
+    #################################
+    # Fields
+    #################################
+    
+    # Get the fields
+    fields = request.args.get('field')
+
+    # Multiple fields?
+    if ',' in fields:
+        fields = set([s.upper() for s in fields.split(',')])
+    else:
+        fields = set([fields])
+
+    # Check field[s] for validity -- all fields must be in FIELD_MAP to pass
+    if not fields.issubset(FIELD_MAP):
+        return f"Argument 'field' must be included from one or more of {', '.join(FIELD_MAP)}", 400
+
+    #################################
+    # Sources
+    #################################
+
+    # Get the source or sources
+    srcs = request.args.get('src')
+
+    # Multiple sources were defined
+    if ',' in srcs:
+        srcs = set([s.upper() for s in srcs.split(',')])
+    else:
+        srcs = set([srcs])
+    
+    # Check src[s] for validity
+    if not srcs.issubset(SRC_MAP):
+        return f"Argument 'src' must be included from one or more of {', '.join(SRC_MAP)}", 400
+    
+    #################################
+    # Delta
+    #################################
 
     # Optional argument: 'delta' - how far in the past (minutes) to look
     if 'delta' in request.args:
         delta = request.args.get('delta', type=int)
     else:
         delta = 24 * 60
-    assert (delta > 0), "'delta' must be a positive integer (minutes)"
+    if delta <= 0:
+        return "Argument 'delta' must be a positive integer (minutes)", 400
 
+    #################################
+    # Query Builder
+    #################################
+
+    # Build the 'fields' portion of query
+    Q_FIELDS = f"""{FIELD_MAP["FIELD_ID"]}, 
+                   {FIELD_MAP["FIELD_TS"]}, 
+                   {FIELD_MAP["FIELD_LAT"]}, 
+                   {FIELD_MAP["FIELD_LON"]},
+                   {','.join(FIELD_MAP[field] for field in fields)}
+                """
+
+    # Build the 'source tables' portion of query
+    Q_TBL = f"""SELECT 
+                    {Q_FIELDS}
+                FROM 
+                    `{PROJECT_ID}.{BQ_DATASET_TELEMETRY}.%s` 
+                WHERE 
+                    {FIELD_MAP["FIELD_TS"]} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
+            """
+
+    if srcs[0] == "ALL":
+        tbl_union = Q_TBL % ('*')
+    elif len(srcs) == 1:
+        tbl_union = Q_TBL % (srcs[0])
+    else:
+        tbl_union = ' UNION ALL '.join([Q_TBL % (s) for s in srcs])
+
+    # Build the full query
     q = f"""SELECT 
-                {TBL_MAP["DeviceID"]}  AS DeviceID, 
-                {TBL_MAP["Timestamp"]} AS Timestamp, 
-                {TBL_MAP["Latitude"]}  AS Latitude, 
-                {TBL_MAP["Longitude"]} AS Longitude, 
-                {TBL_MAP["PM2_5"]}     AS PM2_5
+                {Q_FIELDS}
             FROM
                 (
                     SELECT 
@@ -110,14 +177,14 @@ def liveSensors():
                         ROW_NUMBER() 
                             OVER (
                                     PARTITION BY 
-                                        {TBL_MAP["DeviceID"]} 
+                                        {FIELD_MAP["FIELD_ID"]} 
                                     ORDER BY 
-                                        {TBL_MAP["Timestamp"]} DESC
+                                        {FIELD_MAP["FIELD_TS"]} DESC
                             ) row_num
                     FROM 
-                        `{src_tbl}`
+                        (`{tbl_union}`)
                     WHERE 
-                        {TBL_MAP["Timestamp"]} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
+                        {FIELD_MAP["Timestamp"]} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
                 )
             WHERE 
                 row_num = 1;
@@ -126,19 +193,18 @@ def liveSensors():
     query_job = bq_client.query(q)
     rows = query_job.result()
     
-    data = []
-    for row in rows:
-        data.append(
-            {
-                "DeviceID": str(row.DeviceID),
-                "Latitude": row.Latitude,
-                "Longitude": row.Longitude,
-                "Timestamp": row.Timestamp,
-                "PM2_5": row.PM2_5
-            })
+    data = [
+        {(field, row[field]) for field in fields}
+        for row in rows
+    ]
 
-    # Apply correction factors 
-    data = utils.applyCorrectionFactorsToList(data)
+    # Clean data and apply correction factors
+    data = utils.tuneData(
+        data,
+        pm_key=(FIELD_MAP["FIELD_PM"] if FIELD_MAP["FIELD_PM"] in fields else None),
+        temp_key=(FIELD_MAP["FIELD_TEMP"] if FIELD_MAP["FIELD_TEMP"] in fields else None),
+        hum_key=(FIELD_MAP["FIELD_HUM"] if FIELD_MAP["FIELD_HUM"] in fields else None)
+    )
 
     return jsonify(data), 200
 
@@ -148,45 +214,45 @@ def liveSensors():
 # Parameter:
 # Return: Last recorded sensor input from all sensors in the DB
 # ***********************************************************
-@app.route("/request_data_flask", methods=['GET'])
-def request_data_flask(d):
-    sensor_list = []
+# @app.route("/request_data_flask", methods=['GET'])
+# def request_data_flask(d):
+#     sensor_list = []
  
-    logging.error(request.view_args)
-    logging.error(request.args)
-    logging.error(vars(request.args))
-    req_args = [
-        'src'
-        ]
+#     logging.error(request.view_args)
+#     logging.error(request.args)
+#     logging.error(vars(request.args))
+#     req_args = [
+#         'src'
+#         ]
 
-    r = utils.checkArgs(request.args, req_args)
-    if r[1] != 200: 
-        return r
+#     r = utils.checkArgs(request.args, req_args)
+#     if r[1] != 200: 
+#         return r
 
-    src = request.args.get('src')
-    if src not in SRC_MAP:
-        return jsonify({'Error': f"argument 'src' must be included from {', '.join(list(SRC_MAP.keys()))}"}), 400
-    sensors_table = SRC_MAP[request.args.get('src').upper()]
+#     src = request.args.get('src')
+#     if src not in SRC_MAP:
+#         return jsonify({'Error': f"argument 'src' must be included from {', '.join(list(SRC_MAP.keys()))}"}), 400
+#     sensors_table = SRC_MAP[request.args.get('src').upper()]
 
-    # get the latest sensor data from each sensor
-    q = ("SELECT `" + sensor_table + "`.DEVICEID, PM2_5, Latitude, Longitude, Timestamp "
-         "FROM `" + sensor_table + "` "
-         "INNER JOIN (SELECT DEVICEID, MAX(Timestamp) as maxts "
-         "FROM `" + sensor_table + "` GROUP BY DEVICEID) mr "
-         "ON `" + sensor_table + "`.DEVICEID = mr.DEVICEID AND Timestamp = maxts WHERE Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 DAY);")
+#     # get the latest sensor data from each sensor
+#     q = ("SELECT `" + sensor_table + "`.DEVICEID, PM2_5, Latitude, Longitude, Timestamp "
+#          "FROM `" + sensor_table + "` "
+#          "INNER JOIN (SELECT DEVICEID, MAX(Timestamp) as maxts "
+#          "FROM `" + sensor_table + "` GROUP BY DEVICEID) mr "
+#          "ON `" + sensor_table + "`.DEVICEID = mr.DEVICEID AND Timestamp = maxts WHERE Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 DAY);")
 
-    query_job = bq_client.query(q)
-    rows = query_job.result()  # Waits for query to finish
-    for row in rows:
-        sensor_list.append({"DEVICEID": str(row.DEVICEID),
-                            "Latitude": row.Latitude,
-                            "Longitude": row.Longitude,
-			    "Timestamp": row.Timestamp,
-                            "PM2_5": row.PM2_5})
+#     query_job = bq_client.query(q)
+#     rows = query_job.result()  # Waits for query to finish
+#     for row in rows:
+#         sensor_list.append({"DEVICEID": str(row.DEVICEID),
+#                             "Latitude": row.Latitude,
+#                             "Longitude": row.Longitude,
+# 			    "Timestamp": row.Timestamp,
+#                             "PM2_5": row.PM2_5})
 
     
 
-    return jsonify(sensor_list), 200
+#     return jsonify(sensor_list), 200
 
 
 
@@ -341,25 +407,10 @@ def requestField():
     @param: field   (required)
     @param: start   (required)
     @param: end     (required)
-    
-    Radius:
-    @param: lat
-    @param: lon
-    @param: radius
-
-    Bounding Box:
-    @param: latN
-    @param: latS
-    @param: lonE
-    @param: lonW
 
     Possible queries:
     - [1] Get field from all DeviceIDs
     - [2] Get field from select DeviceID[s]
-    - [3] Get field in radius from all DeviceIDs
-    - [4] Get field in radius from select DeviceID[s]
-    - [5] Get field in bbox from all DeviceIDs
-    - [6] Get field in bbox from select DeviceIDs
     """
     
     req_args = [

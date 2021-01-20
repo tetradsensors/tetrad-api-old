@@ -42,13 +42,31 @@ handlers:
 env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
-  # PROJECT_ID: "tetrad-296715"   # Stored by default in GOOGLE_CLOUD_PROJECT
-  BIGQUERY_TABLE_SLC: "tetrad-296715.telemetry.slc_ut"
-  # BIGQUERY_TABLE_CHATT: "tetrad-296715.telemetry.chatt_tn"
-  # BIGQUERY_TABLE_KC: "tetrad-296715.telemetry.kc_mo"
-  # BIGQUERY_TABLE_CLEV: "tetrad-296715.telemetry.clev_oh"
-  # BIGQUERY_TABLE_BADGPS: "tetrad-296715.telemetry.badgps"
-  # BIGQUERY_TABLE_GLOBAL: "tetrad-296715.telemetry.global"
+  BQ_DATASET_TELEMETRY: "telemetry"
+  BQ_TABLE_SLC:    "slc_ut"
+  BQ_TABLE_CHATT:  "chatt_tn"
+  BQ_TABLE_KC:     "kc_mo"
+  BQ_TABLE_CLEV:   "clev_oh"
+  BQ_TABLE_BADGPS: "badgps"
+  BQ_TABLE_GLOBAL: "global"
+  FIELD_TS:   "Timestamp"
+  FIELD_ID:   "DeviceID"
+  FIELD_LAT:  "Latitude"
+  FIELD_LON:  "Longitude"
+  FIELD_ELE:  "Elevation"
+  FIELD_PM1:  "PM1"
+  FIELD_PM2:  "PM2_5"
+  FIELD_PM10: "PM10"
+  FIELD_TEMP: "Temperature"
+  FIELD_HUM:  "Humidity"
+  FIELD_RED:  "MicsRED"
+  FIELD_NOX:  "MicsNOX"
+  FIELD_HTR:  "MicsHeater"
+  FIELD_FLG:  "Flags"
+  PM_BAD_THRESH: 500
+  PM_BAD_FLAG: -1
+  TEMP_BAD_FLAG: -1000
+  HUM_BAD_FLAG: -1000
   BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
   CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"
