@@ -5,13 +5,11 @@ from utm import from_latlon
 from matplotlib.path import Path
 from scipy import interpolate
 from scipy.io import loadmat
-from dotenv import load_dotenv
 from csv import reader as csv_reader
 import math 
 from flask import jsonify
 import numpy as np
 
-#load_dotenv()
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
 
@@ -92,12 +90,12 @@ def applyCorrectionFactor(factors, data_timestamp, data):
         factor_start = factor['start_date']
         factor_end = factor['end_date']
         if factor_start <= data_timestamp and factor_end > data_timestamp:
-            return data * factor['3003_slope'] + factor['3003_intercept']
+            return max(0, data * factor['3003_slope'] + factor['3003_intercept'])
     print('\nNo correction factor found for ', data_timestamp)
     return data
 
 
-def applyCorrectionFactorsToList(data_list, pm_key=None):
+def applyCorrectionFactorsToList(data_list, pm25_key=None):
     """Apply correction factors (in place) to PM2.5 data in data_list"""
     
     # Open the file and get correction factors
@@ -118,7 +116,7 @@ def applyCorrectionFactorsToList(data_list, pm_key=None):
     # Apply the correction factors to the PM2.5 data
     for datum in data_list:
         try:
-            datum[pm_key] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum[pm_key])
+            datum[pm25_key] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum[pm25_key])
         except: # Only try once. We just assume it isn't there if the first row doesn't have it
             return data_list
         # found = False
@@ -134,7 +132,7 @@ def applyCorrectionFactorsToList(data_list, pm_key=None):
     return data_list
 
 
-def tuneData(data:list, pm_key=None, temp_key=None, hum_key=None):
+def tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None):
     """ Clean data and apply correction factors """
     # Open the file and get correction factors
     with open(getenv("CORRECTION_FACTORS_FILENAME")) as csv_file:
@@ -153,12 +151,12 @@ def tuneData(data:list, pm_key=None, temp_key=None, hum_key=None):
         
     goodPM, goodTemp, goodHum = True, True, True
     for datum in data:
-        if pm_key and goodPM:
+        if pm25_key and goodPM:
             try:
-                if (datum[pm_key] == getenv("PM_BAD_FLAG")) or (datum[pm_key] >= getenv("PM_BAD_THRESH")):
-                    datum[pm_key] = None
+                if (datum[pm25_key] == getenv("PM_BAD_FLAG")) or (datum[pm25_key] >= getenv("PM_BAD_THRESH")):
+                    datum[pm25_key] = None
                 else:
-                    datum[pm_key] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum[pm_key])
+                    datum[pm25_key] = applyCorrectionFactor(correction_factors, datum['Timestamp'], datum[pm25_key])
             except:
                 goodPM = False
 
@@ -324,17 +322,17 @@ def convertLatLonToUTM(sensor_data):
         datum['utm_x'], datum['utm_y'], datum['zone_num'], zone_let = latlonToUTM(datum['Latitude'], datum['Longitude'])
 
 
-def idsToWHEREClause(ids, id_tbl_name):
+def idsToWHEREClause(ids, id_field_name):
     """
     Return string that looks like:
-    (<id_tbl_name> = <id[0]> OR ... OR <id_tbl_name> = <id[n-1]>)
+    (<id_field_name> = <id[0]> OR ... OR <id_field_name> = <id[n-1]>)
     """
     if isinstance(ids, str):
         ids = [ids]
     if not isinstance(ids, list):
         raise TypeError('ids must be single DeviceID or DeviceID list')
 
-    return """({})""".format(' OR '.join([f'{id_tbl_name} = "{ID}"' for ID in ids]))
+    return """({})""".format(' OR '.join([f'{id_field_name} = "{ID}"' for ID in ids]))
 
 
 def checkArgs(request_args, required_args):
