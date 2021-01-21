@@ -20,3 +20,7 @@ env/
 
 # Model Generated Files
 *.txt
+
+local
+local/
+local/*
