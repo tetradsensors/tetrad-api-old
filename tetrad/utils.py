@@ -9,6 +9,8 @@ from csv import reader as csv_reader
 import math 
 from flask import jsonify
 import numpy as np
+import re
+
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
@@ -32,14 +34,33 @@ def validLongitude(lon):
     return (-180 <= lon <= 180)
 
 
-def validLatLon(lat, lon):
+def validLatLon(lat:float, lon:float) -> bool:
     """Check if lat/lon are valid"""
     return validLatitude(lat) and validLongitude(lon)
 
 
-def validRadius(radius):
+def validRadius(radius:float) -> bool:
     """Check if valid radius for Earth"""
     return (0 < radius < 6.3e6)
+
+
+def validDevice(device:str) -> bool:
+    """
+    Must be 12-character HEX string in CAPS
+    Forcing caps is delibrate so that it won't 
+    make it past this check and into a query (where it will fail)
+    """
+    return bool(re.match(r'^[0-9A-F]{12}$', device))
+
+
+def validDevices(devices:[str]) -> bool:
+    """
+    Check list of devices (12-char HEX strings)
+    Require ALL devices to be valid. This is intentional 
+    instead of filtering out bad IDs because the user
+    might not notice that some devices are incorrect.
+    """
+    return all(map(validDevice, devices))
 
 
 def parseDateString(datetime_string):

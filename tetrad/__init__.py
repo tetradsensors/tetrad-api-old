@@ -17,7 +17,8 @@ logging.error("Inside __init__.py setup")
 
 # app = Flask(__name__)
 app = Flask(__name__, subdomain_matching=True)
-cors = CORS(app, ressources={r"/request_historical*": {"origins": "*"}})
+# cors = CORS(app, resources={r"/request_historical*": {"origins": "*"}})
+cors = CORS(app)
 #Below Route to be tested once we get the API running
 #cors = CORS(app, ressources={r"/request_historical*": {"origins": "https://www.tetradsensors.com/*"}})
 app.config['SERVER_NAME'] = getenv('DOMAIN_NAME')

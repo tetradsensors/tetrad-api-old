@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 from flask import request, jsonify
 import functools
 from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
-from tetrad import app, cache, admin_utils, limiter, utils #, gaussian_model_utils
+from tetrad import app, cache, admin_utils, limiter, utils 
+# from tetrad import gaussian_model_utils
 import json
 import numpy as np 
 from os import getenv
@@ -44,6 +45,14 @@ SRC_MAP = {
     "ALLGPS": None,
 }
 
+ALLGPS_TBLS = {
+    "SLC":    BQ_TABLE_SLC,
+    "CHATT":  BQ_TABLE_CHATT,
+    "CLEV":   BQ_TABLE_CLEV,
+    "KC":     BQ_TABLE_KC,
+    "GLOBAL": BQ_TABLE_GLOBAL,
+}
+
 # Field names as they appear in route arguments
 #   and their mapping to BigQuery field names
 FIELD_MAP = {
@@ -64,18 +73,16 @@ FIELD_MAP = {
 
 # The query-able fields
 VALID_QUERY_FIELDS = {
-    (k, FIELD_MAP[k]) for k in 
-        [
-            "PM1",
-            "PM2_5",
-            "PM10",
-            "TEMPERATURE",
-            "HUMIDITY",
-            "MICSRED",
-            "MICSNOX",
-            "MICSHEATER",
-        ]
-    }
+    "ELEVATION":    getenv("FIELD_ELE"),
+    "PM1":          getenv("FIELD_PM1"),
+    "PM2_5":        getenv("FIELD_PM2"),
+    "PM10":         getenv("FIELD_PM10"),
+    "TEMPERATURE":  getenv("FIELD_TEMP"),
+    "HUMIDITY":     getenv("FIELD_HUM"),
+    "MICSRED":      getenv("FIELD_RED"),
+    "MICSNOX":      getenv("FIELD_NOX"),
+    "MICSHEATER":   getenv("FIELD_HTR"),
+}
 
 
 def buildFields(fields):
@@ -84,7 +91,6 @@ def buildFields(fields):
                    {FIELD_MAP["TIMESTAMP"]}, 
                    {FIELD_MAP["LATITUDE"]}, 
                    {FIELD_MAP["LONGITUDE"]},
-                   {FIELD_MAP["ELEVATION"]},
                    {','.join(FIELD_MAP[field] for field in fields)}
                 """
     return q_fields
@@ -106,12 +112,23 @@ def buildSources(srcs, query_template):
 
 
 def parseSources(srcs):
-    # Multiple sources were defined
+    '''
+    Parse a 'src' argument from request.args.get('src')
+    into a list of sources
+    '''
     if ',' in srcs:
         srcs = [s.upper() for s in srcs.split(',')]
     else:
         srcs = [srcs.upper()]
     
+    if len(srcs) > 1 and "ALL" in srcs:
+        return "Argument list cannot contain 'ALL' and other sources", 400
+    if len(srcs) > 1 and "ALLGPS" in srcs:
+        return "Argument list cannot contain 'ALLGPS' and other sources", 400
+    
+    if "ALLGPS" in srcs:
+        srcs = list(ALLGPS_TBLS)
+
     # Check src[s] for validity
     if not checkSources(srcs):
         return f"Argument 'src' must be included from one or more of {', '.join(SRC_MAP)}", 400
@@ -131,6 +148,17 @@ def parseFields(fields):
     return fields, 200
 
 
+def parseDevices(devices_str:str):
+    if ',' in devices_str:
+        devices = [s.upper() for s in devices_str.split(',')]
+    else:
+        devices = [devices_str.upper()]
+    
+    if not utils.validDevices(devices):
+        return f"Argument 'devices' must be 12-digit HEX string or list of strings", 400
+    return devices, 200
+    
+
 def checkSources(srcs:list):
     return set(srcs).issubset(SRC_MAP)
 
@@ -149,7 +177,7 @@ def tuneDataWrapper(data, fields):
 
 
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
-# @cache.cached(timeout=1800)
+# @cache.cached(timeout=119)
 def liveSensors():
 
     logging.error(request.view_args)
@@ -158,7 +186,7 @@ def liveSensors():
     req_args = [
         'src',
         'field'
-        ]
+    ]
 
     r = utils.checkArgs(request.args, req_args)
     if r[1] != 200: 
@@ -209,26 +237,28 @@ def liveSensors():
     tbl_union = buildSources(srcs, Q_TBL)
 
     # Build the full query
-    q = f"""SELECT 
-                {Q_FIELDS}
-            FROM
+    q = f"""
+    SELECT 
+        {Q_FIELDS}
+    FROM
+        (
+            SELECT 
+                *, 
+                ROW_NUMBER() 
+            OVER
                 (
-                    SELECT 
-                        *, 
-                        ROW_NUMBER() 
-                            OVER (
-                                    PARTITION BY 
-                                        {FIELD_MAP["DEVICEID"]} 
-                                    ORDER BY 
-                                        {FIELD_MAP["TIMESTAMP"]} DESC
-                            ) row_num
-                    FROM 
-                        ({tbl_union})
-                    WHERE 
-                        {FIELD_MAP["TIMESTAMP"]} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
+                    PARTITION BY 
+                        {FIELD_MAP["DEVICEID"]} 
+                    ORDER BY 
+                        {FIELD_MAP["TIMESTAMP"]} DESC
+                ) row_num
+            FROM 
+                (
+                    {tbl_union}
                 )
-            WHERE 
-                row_num = 1;
+        )
+    WHERE 
+        row_num = 1;
     """
 
     logging.error(q)
@@ -245,6 +275,7 @@ def liveSensors():
 
 
 @app.route("/requestData", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+
 def requestField():
     """
     Arguments:
@@ -277,14 +308,14 @@ def requestField():
     #################################
     # Fields
     #################################
-    fields, code = parseFields(request.args.get('field'))
+    fields, code = parseFields(fields)
     if code != 200:
         return fields, code
 
     #################################
     # Sources
     #################################
-    srcs, code = parseSources(request.args.get('src'))
+    srcs, code = parseSources(srcs)
     if code != 200:
         return srcs, code
 
@@ -301,21 +332,19 @@ def requestField():
     # Device list
     #################################
 
-    if 'devices' in request.args:
-        devices = request.args.getlist('devices')
-        # TODO: Test to see what happens with one list item
-    else: 
+    if request.args.get('devices'):
+        devices, code = parseDevices(request.args.get('devices'))
+        if code != 200:
+            return devices, code
+    else:
         devices = None
 
-    # Perform query and post-query cleanup
-    response = _requestDataInternal(srcs, fields, start, end, id_ls=devices)
+    #################################
+    # Query and Post-query
+    #################################
+    data, response = _requestDataInternal(srcs, fields, start, end, id_ls=devices)
 
-    if response[1] != 200:
-        return response 
-    else:
-        data = response[0] 
-
-    return data, 200
+    return data, response
     
 
 def _requestDataInternal(srcs, fields, start, end, id_ls=None):
@@ -323,7 +352,7 @@ def _requestDataInternal(srcs, fields, start, end, id_ls=None):
     in date range [start, end]. Can include an ID or a list of IDs"""
 
     if id_ls:
-        idstr = utils.idsToWHEREClause(id_ls, FIELD_MAP['DeviceID'])
+        idstr = utils.idsToWHEREClause(id_ls, FIELD_MAP['DEVICEID'])
     else:
         idstr = "True"
 
@@ -334,62 +363,39 @@ def _requestDataInternal(srcs, fields, start, end, id_ls=None):
                 FROM 
                     `{PROJECT_ID}.{BQ_DATASET_TELEMETRY}.%s` 
                 WHERE 
-                    {FIELD_MAP["FIELD_TS"]} >= "{start}"
+                    {FIELD_MAP["TIMESTAMP"]} >= "{start}"
                         AND
-                    {FIELD_MAP["FIELD_TS"]} <= "{end}"
+                    {FIELD_MAP["TIMESTAMP"]} <= "{end}"
             """
 
-    tbl_union = buildSrcs(srcs, Q_TBL)
+    tbl_union = buildSources(srcs, Q_TBL)
 
     # Build the query
-    QUERY = f"""
-        SELECT
-            {query_fields}
-        FROM 
-            {tbl_union}
-        WHERE
-            {idstr}
-        ORDER BY
-            Timestamp;        
+    q = f"""
+    SELECT
+        {query_fields}
+    FROM 
+        ({tbl_union})
+    WHERE
+        {idstr}
+    ORDER BY
+        {FIELD_MAP["TIMESTAMP"]};        
     """
 
-    job_config = QueryJobConfig(
-        query_parameters=[
-            ScalarQueryParameter("start", "TIMESTAMP", start),
-            ScalarQueryParameter("end", "TIMESTAMP", end),
-        ]
-    )
-
-    print(QUERY)
-
     # Run the query and collect the result
-    query_job = bq_client.query(QUERY, job_config=job_config)
-
-    if query_job.error_result:
-        print(query_job.error_result)
-
-        # TODO: Is it okay to dump this info? 
-        return f"Invalid API call - check documentation.<br>{query_job.error_result}", 400
-
-    # Wait for query to finish
+    query_job = bq_client.query(q)
     rows = query_job.result()
-
-    # Format as proper dicts
     
     # break on empty iterator
     if rows.total_rows == 0:
         msg = "No data returned"
         return msg, 200
 
+    # Convert to list-of-dicts
     data = [dict(r) for r in rows]
 
     # Clean data and apply correction factors
-    data = utils.tuneData(
-        data,
-        pm25_key=(FIELD_MAP["PM2_5"] if FIELD_MAP["PM2_5"] in fields else None),
-        temp_key=(FIELD_MAP["Temperature"] if FIELD_MAP["Temperature"] in fields else None),
-        hum_key=(FIELD_MAP["Humidity"] if FIELD_MAP["Humidity"] in fields else None)
-    )
+    data = tuneDataWrapper(data, fields)
 
     # Apply correction factors to data
     return jsonify(data), 200
