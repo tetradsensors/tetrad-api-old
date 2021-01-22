@@ -22,7 +22,8 @@ def parseDatetimeString(datetime_string:str):
     """Parse date string into a datetime object"""
     if not verifyDateString(datetime_string): 
         return None
-    return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('US/Mountain'))
+    # return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('US/Mountain'))
+    return datetime.strptime(datetime_string, DATETIME_FORMAT)
 
 
 def datetimeToBigQueryTimestamp(date):
@@ -308,8 +309,8 @@ def latlonToUTM(lat, lon):
 # TODO: Rename
 def convertLatLonToUTM(sensor_data):
     for datum in sensor_data:
-        datum['utm_x'], datum['utm_y'], datum['zone_num'], zone_let = latlonToUTM(datum['Latitude'], datum['Longitude'])
-
+        datum['utm_x'], datum['utm_y'], datum['zone_num'], _ = latlonToUTM(datum['Latitude'], datum['Longitude'])
+    return sensor_data
 
 def convertRadiusToBBox(r, c):
     N = c[0] + r
@@ -436,6 +437,22 @@ def verifyArgs(request_args, required_args, possible_args):
     except ArgumentError:
         raise
     return True
+
+
+def argParseLat(lat):
+    try:
+        verifyLatitude(lat)
+    except:
+        raise ArgumentError("Must supply valid latitude", 400)
+    return lat
+
+
+def argParseLon(lon):
+    try:
+        verifyLongitude(lon)
+    except:
+        raise ArgumentError("Must supply valid longitude", 400)
+    return lon
 
 
 def argParseSources(srcs):

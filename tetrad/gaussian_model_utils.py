@@ -1,8 +1,8 @@
 from datetime import datetime
 import pytz
 import numpy
-from aqandu import gaussian_model
-from aqandu import utils
+from tetrad import gaussian_model
+from tetrad import utils
 import torch
 import statistics
 

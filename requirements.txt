@@ -103,6 +103,7 @@ six==1.15.0
 terminado==0.9.1
 testpath==0.4.4
 toml==0.10.2
+torch==1.7.1
 tornado==6.1
 traitlets==5.0.5
 typing-extensions==3.7.4.3
