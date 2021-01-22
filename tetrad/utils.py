@@ -349,7 +349,7 @@ def bboxDataToRadiusData(data, radius, center):
         lon = datum[FIELD_MAP["LONGITUDE"]]
         if coordsInCircle((lat, lon), radius, center):
             inRad.append(datum)
-    return datum
+    return inRad
 
 def idsToWHEREClause(ids, id_field_name):
     """
@@ -419,7 +419,22 @@ def verifyFields(fields:list):
 
 def verifyRequiredArgs(request_args, required_args):
     if any(elem not in list(request_args) for elem in list(required_args)):
-        raise ArgumentError(f'Missing arg, one of: {", ".join(list(required_args))}', 400)
+        raise ArgumentError(f'Missing arg, one of: {", ".join(list(required_args))}', status_code=400)
+    return True
+
+
+def verifyPossibleArgs(request_args, possible_args):
+    if not set(request_args).issubset(set(possible_args)):
+        raise ArgumentError(f'Argument outside of possible argument list: [{", ".join(list(possible_args))}]', status_code=400)
+    return True 
+
+
+def verifyArgs(request_args, required_args, possible_args):
+    try:
+        verifyRequiredArgs(request_args, required_args)
+        verifyPossibleArgs(request_args, possible_args)
+    except ArgumentError:
+        raise
     return True
 
 
@@ -470,7 +485,7 @@ def argParseDevices(devices_str:str):
         devices = [devices_str.upper()]
     
     if not verifyDeviceList(devices):
-        raise ArgumentError(f"Argument 'devices' must be 12-digit HEX string or list of strings", 400)
+        raise ArgumentError(f"Argument 'device' must be 12-digit HEX string or list of strings", 400)
     return devices
 
 
@@ -492,7 +507,7 @@ def argParseBBox(bbox:str):
             raise Exception
         return bb
     except:
-        raise ArgumentError("Argument 'bbox' error. 'bbox' must be list of latitudes and longitudes in the order of North,South,East,West.", status_code=400)
+        raise ArgumentError("Argument 'box' error. 'box' must be list of latitudes and longitudes in the order of North,South,East,West.", status_code=400)
 
 
 def argParseRadius(r:float):

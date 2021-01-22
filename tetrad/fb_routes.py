@@ -9,7 +9,6 @@ gcloud_logging_client = google.cloud.logging.Client()
 gcloud_logging_client.get_default_handler()
 gcloud_logging_client.setup_logging()
 import logging
-logging.error("Inside fb_routes.py")
 
 
 # firebase_app = initialize_app()

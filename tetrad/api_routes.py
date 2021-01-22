@@ -22,9 +22,19 @@ import logging
 
 @app.errorhandler(ArgumentError)
 def handle_arg_error(error):
+    error = error.to_dict()
+    error['message'] += ' For more information, please visit: https://github.com/tetradsensors/tetrad_site'
     response = jsonify(error.to_dict())
     response.status_code = error.status_code 
-    return response 
+    return response
+
+
+@app.errorhandler(NoDataError)
+def handle_nodata_error(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code 
+    return response
+
 
 bq_client = Client(project=PROJECT_ID)
 elevation_interpolator = utils.setupElevationInterpolator()
@@ -110,7 +120,7 @@ def liveSensors():
 
     return jsonify(data), 200
 
-
+# https://api.tetradsensors.com/requestData?src=slc_ut&field=pm2_5&start=2021-01-01T00:00:00Z&end=2021-01-22T00:00:00Z
 @app.route("/requestData", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 def requestData():
     """
@@ -120,9 +130,21 @@ def requestData():
     @param: start   (required)
     @param: end     (required)
     @param: devices (optional)  Single device or list of devices
-    @param: bbox    (optional)  List of coordinates in this order: North, South, East, West
-    @param: radius  (optional)  Radius in Kilometers
+    @param: box     (optional)  List of coordinates in this order: North, South, East, West
+    @param: radius  (optional)  Radius in kilometers
+    @param: center  (optional)  Required if 'radius' is supplied. Lat,Lon center of radius. &center=42.012,-111.423&
     """
+
+    args = [
+        'src',
+        'field',
+        'start',
+        'end',
+        'device',
+        'box',
+        'radius',
+        'center'
+    ]
 
     req_args = [
         'src', 
@@ -132,7 +154,7 @@ def requestData():
     ]
 
     try:
-        utils.verifyRequiredArgs(request.args, req_args)
+        utils.verifyArgs(request.args, req_args, args)
         
         # Required
         srcs    = utils.argParseSources(request.args.get('src', type=str))
@@ -141,8 +163,8 @@ def requestData():
         end     = utils.argParseDatetime(request.args.get('end', type=str))
         
         # Optional
-        devices = utils.argParseDevices(request.args.get('devices', type=str))
-        box     = utils.argParseBBox(request.args.getlist('box', type=str))
+        devices = utils.argParseDevices(request.args.get('device', type=str))
+        box     = utils.argParseBBox(request.args.get('box', type=str))
         rc      = utils.argParseRadiusArgs(
                     request.args.get('radius', type=float),
                     request.args.get('center', type=str))
@@ -150,19 +172,23 @@ def requestData():
         raise
     except Exception as e:
         logging.error(str(e))
+        raise
+
 
     #################################
     # Query Picker
     #################################
     data = None
     if box and rc:
-        raise ArgumentError("Must choose either 'box' or 'radius' and 'center' arguments", status_code=400)
+        raise ArgumentError("Must choose either 'box' or 'radius','center' arguments", status_code=400)
     elif rc:
         data = _requestDataInRadius(srcs, fields, start, end, radius=rc[0], center=rc[1], id_ls=devices)
     else:
         data = _requestData(srcs, fields, start, end, bbox=box, id_ls=devices)
 
-    return jsonify(data), 200
+    response = jsonify(data)
+    response.status_code = 200
+    return response
 
 
 def _requestData(srcs, fields, start, end, bbox=None, id_ls=None):
@@ -183,13 +209,13 @@ def _requestData(srcs, fields, start, end, bbox=None, id_ls=None):
 
     if bbox:
         query_latlon = f"""
-            {FIELD_MAP["LATITUDE"]}  <= "{bbox[0]}"
+            {FIELD_MAP["LATITUDE"]}  <= {bbox[0]}
                 AND
-            {FIELD_MAP["LATITUDE"]}  >= "{bbox[1]}"
+            {FIELD_MAP["LATITUDE"]}  >= {bbox[1]}
                 AND
-            {FIELD_MAP["LONGITUDE"]} <= "{bbox[2]}"
+            {FIELD_MAP["LONGITUDE"]} <= {bbox[2]}
                 AND
-            {FIELD_MAP["LONGITUDE"]} >= "{bbox[3]}"
+            {FIELD_MAP["LONGITUDE"]} >= {bbox[3]}
         """
     else:
         query_latlon = "True"
@@ -227,7 +253,7 @@ def _requestData(srcs, fields, start, end, bbox=None, id_ls=None):
     
     # break on empty iterator
     if rows.total_rows == 0:
-        raise NoDataError("No data returned", status_code=204)
+        raise NoDataError("No data returned", status_code=222)
         
     # Convert Response object (generator) to list-of-dicts
     data = [dict(r) for r in rows]
@@ -250,9 +276,10 @@ def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None):
     bbox = utils.convertRadiusToBBox(radius, center)
     data = _requestData(srcs, fields, start, end, bbox=bbox, id_ls=id_ls)
     data = utils.bboxDataToRadiusData(data, radius, center)
+
     
     if len(data) == 0:
-        raise NoDataError("No data returned", status_code=204)
+        raise NoDataError("No data returned", status_code=222)
 
     return data
 

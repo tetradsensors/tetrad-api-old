@@ -8,14 +8,13 @@ from google.cloud import firestore, secretmanager, storage
 from os import getenv
 from flask import request
 import re
-import logging 
 import base64
 import google.cloud.logging 
 gcloud_logging_client = google.cloud.logging.Client()
 gcloud_logging_client.get_default_handler()
 gcloud_logging_client.setup_logging()
 import logging
-logging.error("Inside admin_utils.py")
+
 
 
 fs_client = firestore.Client()
