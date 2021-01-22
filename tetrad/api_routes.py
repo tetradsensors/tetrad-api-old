@@ -29,7 +29,7 @@ def handle_arg_error(error):
 bq_client = Client(project=PROJECT_ID)
 elevation_interpolator = utils.setupElevationInterpolator()
 
-
+# https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 # @cache.cached(timeout=119)
 def liveSensors():
@@ -106,7 +106,7 @@ def liveSensors():
     data = [dict(r) for r in rows]
 
     # Clean data and apply correction factors
-    data = utils.tuneDataWrapper(data, fields)
+    data = utils.tuneData(data, fields)
 
     return jsonify(data), 200
 
@@ -154,73 +154,18 @@ def requestData():
     #################################
     # Query Picker
     #################################
+    data = None
     if box and rc:
         raise ArgumentError("Must choose either 'box' or 'radius' and 'center' arguments", status_code=400)
-    elif box:
-        pass
     elif rc:
-        pass
+        data = _requestDataInRadius(srcs, fields, start, end, radius=rc[0], center=rc[1], id_ls=devices)
     else:
-        _requestData(srcs, fields, start, end, id_ls=devices)
+        data = _requestData(srcs, fields, start, end, bbox=box, id_ls=devices)
 
-    return data, response
-    
-
-def _requestData(srcs, fields, start, end, id_ls=None):
-    """Function to query a field (like Temperature, Humidity, PM, etc.) 
-    in date range [start, end]. Can include an ID or a list of IDs"""
-
-    if id_ls:
-        idstr = utils.idsToWHEREClause(id_ls, FIELD_MAP['DEVICEID'])
-    else:
-        idstr = "True"
-
-    query_fields = buildFields(fields)
-
-    Q_TBL = f"""SELECT 
-                    {query_fields}
-                FROM 
-                    `{PROJECT_ID}.{BQ_DATASET_TELEMETRY}.%s` 
-                WHERE 
-                    {FIELD_MAP["TIMESTAMP"]} >= "{start}"
-                        AND
-                    {FIELD_MAP["TIMESTAMP"]} <= "{end}"
-            """
-
-    tbl_union = buildSources(srcs, Q_TBL)
-
-    # Build the query
-    q = f"""
-    SELECT
-        {query_fields}
-    FROM 
-        ({tbl_union})
-    WHERE
-        {idstr}
-    ORDER BY
-        {FIELD_MAP["TIMESTAMP"]};        
-    """
-
-    # Run the query and collect the result
-    query_job = bq_client.query(q)
-    rows = query_job.result()
-    
-    # break on empty iterator
-    if rows.total_rows == 0:
-        msg = "No data returned"
-        return msg, 200
-
-    # Convert to list-of-dicts
-    data = [dict(r) for r in rows]
-
-    # Clean data and apply correction factors
-    data = utils.tuneData(data, fields)
-
-    # Apply correction factors to data
     return jsonify(data), 200
 
 
-def _requestDataInBox(srcs, fields, start, end, bbox, id_ls=None):
+def _requestData(srcs, fields, start, end, bbox=None, id_ls=None):
     """
     Function to query a field (like Temperature, Humidity, PM, etc.) 
     or list of fields, in date range [start, end], inside a bounding
@@ -236,6 +181,19 @@ def _requestDataInBox(srcs, fields, start, end, bbox, id_ls=None):
 
     query_fields = utils.queryBuildFields(fields)
 
+    if bbox:
+        query_latlon = f"""
+            {FIELD_MAP["LATITUDE"]}  <= "{bbox[0]}"
+                AND
+            {FIELD_MAP["LATITUDE"]}  >= "{bbox[1]}"
+                AND
+            {FIELD_MAP["LONGITUDE"]} <= "{bbox[2]}"
+                AND
+            {FIELD_MAP["LONGITUDE"]} >= "{bbox[3]}"
+        """
+    else:
+        query_latlon = "True"
+
     Q_TBL = f"""
         SELECT 
             {query_fields}
@@ -246,13 +204,7 @@ def _requestDataInBox(srcs, fields, start, end, bbox, id_ls=None):
                 AND
             {FIELD_MAP["TIMESTAMP"]} <= "{end}"
                 AND
-            {FIELD_MAP["LATITUDE"]}  <= "{bbox[0]}"
-                AND
-            {FIELD_MAP["LATITUDE"]}  >= "{bbox[1]}"
-                AND
-            {FIELD_MAP["LONGITUDE"]} <= "{bbox[2]}"
-                AND
-            {FIELD_MAP["LONGITUDE"]} >= "{bbox[3]}"
+            {query_latlon}   
     """
 
     tbl_union = utils.queryBuildSources(srcs, Q_TBL)
@@ -296,12 +248,17 @@ def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None):
     Can include an ID or a list of IDs.
     """
     bbox = utils.convertRadiusToBBox(radius, center)
-    data = _requestDataInBox(srcs, fields, start, end, bbox, id_ls=id_ls)
+    data = _requestData(srcs, fields, start, end, bbox=bbox, id_ls=id_ls)
     data = utils.bboxDataToRadiusData(data, radius, center)
+    
+    if len(data) == 0:
+        raise NoDataError("No data returned", status_code=204)
+
     return data
 
+
 #http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
-@app.route("/getEstimateMap", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/getEstimateMap", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 # @admin_utils.ingroup('admin')
 # @limiter.limit('1/minute')
 # def getEstimateMap():
