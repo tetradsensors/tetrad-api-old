@@ -10,66 +10,26 @@ import math
 from flask import jsonify
 import numpy as np
 import re
+from tetrad.classes import ArgumentError
+from tetrad.api_consts import *
 
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
 
 
-def validateDate(dateString):
-    """Check if date string is valid"""
-    try:
-        return dateString == datetime.strptime(dateString, DATETIME_FORMAT).strftime(DATETIME_FORMAT)
-    except ValueError:
-        return False
-
-
-def validLatitude(lat):
-    """Check if latitude is valid"""
-    return (-90 <= lat <= 90)
-
-
-def validLongitude(lon):
-    """Check if longitude is valid"""
-    return (-180 <= lon <= 180)
-
-
-def validLatLon(lat:float, lon:float) -> bool:
-    """Check if lat/lon are valid"""
-    return validLatitude(lat) and validLongitude(lon)
-
-
-def validRadius(radius:float) -> bool:
-    """Check if valid radius for Earth"""
-    return (0 < radius < 6.3e6)
-
-
-def validDevice(device:str) -> bool:
-    """
-    Must be 12-character HEX string in CAPS
-    Forcing caps is delibrate so that it won't 
-    make it past this check and into a query (where it will fail)
-    """
-    return bool(re.match(r'^[0-9A-F]{12}$', device))
-
-
-def validDevices(devices:[str]) -> bool:
-    """
-    Check list of devices (12-char HEX strings)
-    Require ALL devices to be valid. This is intentional 
-    instead of filtering out bad IDs because the user
-    might not notice that some devices are incorrect.
-    """
-    return all(map(validDevice, devices))
-
-
-def parseDateString(datetime_string):
+def parseDatetimeString(datetime_string:str):
     """Parse date string into a datetime object"""
+    if not verifyDateString(datetime_string): 
+        return None
     return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('US/Mountain'))
 
 
 def datetimeToBigQueryTimestamp(date):
-    return date.strftime(BQ_DATETIME_FORMAT)
+    try:
+        return date.strftime(BQ_DATETIME_FORMAT)
+    except AttributeError:
+        return None
 
 
 # # Load up elevation grid
@@ -98,8 +58,8 @@ def loadCorrectionFactors():
         correction_factors = []
         for row in rows:
             rowDict = {name: elem for elem, name in zip(row, header)}
-            rowDict['start_date'] = parseDateString(rowDict['start_date'])
-            rowDict['end_date'] = parseDateString(rowDict['end_date'])
+            rowDict['start_date'] = parseDatetimeString(rowDict['start_date'])
+            rowDict['end_date']   = parseDatetimeString(rowDict['end_date'])
             rowDict['3003_slope'] = float(rowDict['3003_slope'])
             rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
             correction_factors.append(rowDict)
@@ -128,8 +88,8 @@ def applyCorrectionFactorsToList(data_list, pm25_key=None):
         correction_factors = []
         for row in rows:
             rowDict = {name: elem for elem, name in zip(row, header)}
-            rowDict['start_date'] = parseDateString(rowDict['start_date'])
-            rowDict['end_date'] = parseDateString(rowDict['end_date'])
+            rowDict['start_date'] = parseDatetimeString(rowDict['start_date'])
+            rowDict['end_date'] = parseDatetimeString(rowDict['end_date'])
             rowDict['3003_slope'] = float(rowDict['3003_slope'])
             rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
             correction_factors.append(rowDict)
@@ -153,22 +113,23 @@ def applyCorrectionFactorsToList(data_list, pm25_key=None):
     return data_list
 
 
-def tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None):
+def _tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None):
     """ Clean data and apply correction factors """
     # Open the file and get correction factors
-    with open(getenv("CORRECTION_FACTORS_FILENAME")) as csv_file:
-        read_csv = csv_reader(csv_file, delimiter=',')
-        rows = [row for row in read_csv]
-        header = rows[0]
-        rows = rows[1:]
-        correction_factors = []
-        for row in rows:
-            rowDict = {name: elem for elem, name in zip(row, header)}
-            rowDict['start_date'] = parseDateString(rowDict['start_date'])
-            rowDict['end_date'] = parseDateString(rowDict['end_date'])
-            rowDict['3003_slope'] = float(rowDict['3003_slope'])
-            rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
-            correction_factors.append(rowDict)
+    if pm25_key:
+        with open(getenv("CORRECTION_FACTORS_FILENAME")) as csv_file:
+            read_csv = csv_reader(csv_file, delimiter=',')
+            rows = [row for row in read_csv]
+            header = rows[0]
+            rows = rows[1:]
+            correction_factors = []
+            for row in rows:
+                rowDict = {name: elem for elem, name in zip(row, header)}
+                rowDict['start_date'] = parseDatetimeString(rowDict['start_date'])
+                rowDict['end_date'] = parseDatetimeString(rowDict['end_date'])
+                rowDict['3003_slope'] = float(rowDict['3003_slope'])
+                rowDict['3003_intercept'] = float(rowDict['3003_intercept'])
+                correction_factors.append(rowDict)
         
     goodPM, goodTemp, goodHum = True, True, True
     for datum in data:
@@ -196,9 +157,16 @@ def tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None):
                 goodHum = False
         
     return data
-
-
         
+
+def tuneData(data, fields):
+    return _tuneData(
+            data,
+            pm25_key=(FIELD_MAP["PM2_5"] if "PM2_5" in fields else None),
+            temp_key=(FIELD_MAP["TEMPERATURE"] if "TEMPERATURE" in fields else None),
+            hum_key=(FIELD_MAP["HUMIDITY"] if "HUMIDITY" in fields else None)
+    )
+
 
 def loadLengthScales():
     with open(getenv("LENGTH_SCALES_FILENAME")) as csv_file:
@@ -209,8 +177,8 @@ def loadLengthScales():
         length_scales = []
         for row in rows:
             rowDict = {name: elem for elem, name in zip(row, header)}
-            rowDict['start_date'] = parseDateString(rowDict['start_date'])
-            rowDict['end_date'] = parseDateString(rowDict['end_date'])
+            rowDict['start_date'] = parseDatetimeString(rowDict['start_date'])
+            rowDict['end_date'] = parseDatetimeString(rowDict['end_date'])
             rowDict['latlon'] = float(rowDict['latlon'])
             rowDict['elevation'] = float(rowDict['elevation'])
             rowDict['time'] = float(rowDict['time'])
@@ -343,6 +311,46 @@ def convertLatLonToUTM(sensor_data):
         datum['utm_x'], datum['utm_y'], datum['zone_num'], zone_let = latlonToUTM(datum['Latitude'], datum['Longitude'])
 
 
+def convertRadiusToBBox(r, c):
+    N = c[0] + r
+    S = c[0] - r 
+    E = c[1] + r
+    W = c[1] - r
+    return [N, S, E, W]
+
+
+# https://www.movable-type.co.uk/scripts/latlong.html
+def distBetweenCoords(p1, p2):
+    """
+    Get the Great Circle Distance between two
+    GPS coordinates, in kilometers
+    """
+    R = 6371
+    phi1 = p1[0] * (math.pi / 180)
+    phi2 = p2[0] * (math.pi / 180)
+    del1 = (p2[0] - p1[0]) * (math.pi / 180)
+    del2 = (p2[1] - p1[1]) * (math.pi / 180)
+    
+    a = math.sin(del1 / 2) * math.sin(del1 / 2) +   \
+        math.cos(phi1) * math.cos(phi2) *           \
+        math.sin(del2 / 2) * math.sin(del2 / 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    d = R * c 
+    return d
+
+def coordsInCircle(coords, radius, center):
+    return distBetweenCoords(coords, center) <= radius
+
+
+def bboxDataToRadiusData(data, radius, center):
+    inRad = []
+    for datum in data:
+        lat = datum[FIELD_MAP["LATITUDE"]]
+        lon = datum[FIELD_MAP["LONGITUDE"]]
+        if coordsInCircle((lat, lon), radius, center):
+            inRad.append(datum)
+    return datum
+
 def idsToWHEREClause(ids, id_field_name):
     """
     Return string that looks like:
@@ -350,15 +358,205 @@ def idsToWHEREClause(ids, id_field_name):
     """
     if isinstance(ids, str):
         ids = [ids]
-    if not isinstance(ids, list):
-        raise TypeError('ids must be single DeviceID or DeviceID list')
 
     return """({})""".format(' OR '.join([f'{id_field_name} = "{ID}"' for ID in ids]))
 
 
-def checkArgs(request_args, required_args):
-    if not all(elem in list(request_args) for elem in list(required_args)):
-        return jsonify({'Error': f'Missing arg, one of: {", ".join(list(required_args))}'}), 400
+def verifyDateString(dateString:str) -> bool:
+    """Check if date string is valid"""
+    try:
+        return dateString == datetime.strptime(dateString, DATETIME_FORMAT).strftime(DATETIME_FORMAT)
+    except ValueError:
+        return False
+
+
+def verifyLatitude(lat:float) -> bool:
+    """Check if latitude is valid"""
+    return (-90 <= lat <= 90)
+
+
+def verifyLongitude(lon:float) -> bool:
+    """Check if longitude is valid"""
+    return (-180 <= lon <= 180)
+
+
+def verifyLatLon(lat:float, lon:float) -> bool:
+    """Check if lat/lon are valid"""
+    return verifyLatitude(lat) and verifyLongitude(lon)
+
+
+def verifyRadius(radius:float) -> bool:
+    """Check if valid radius for Earth in kilometers"""
+    return (0 < radius < 6371)
+
+
+def verifyDeviceString(device:str) -> bool:
+    """
+    Must be 12-character HEX string in CAPS
+    Forcing caps is delibrate so that it won't 
+    make it past this check and into a query (where it will fail)
+    """
+    return bool(re.match(r'^[0-9A-F]{12}$', device))
+
+
+def verifyDeviceList(devices:[str]) -> bool:
+    """
+    Check list of devices (12-char HEX strings)
+    Require ALL devices to be valid. This is intentional 
+    instead of filtering out bad IDs because the user
+    might not notice that some devices are incorrect.
+    """
+    return all(map(verifyDeviceString, devices))
+
+
+def verifySources(srcs:list):
+    return set(srcs).issubset(SRC_MAP)
+
+
+def verifyFields(fields:list):
+    return set(fields).issubset(FIELD_MAP)
+
+
+def verifyRequiredArgs(request_args, required_args):
+    if any(elem not in list(request_args) for elem in list(required_args)):
+        raise ArgumentError(f'Missing arg, one of: {", ".join(list(required_args))}', 400)
+    return True
+
+
+def argParseSources(srcs):
+    '''
+    Parse a 'src' argument from request.args.get('src')
+    into a list of sources
+    '''
+    if ',' in srcs:
+        srcs = [s.upper() for s in srcs.split(',')]
     else:
-        return True, 200
+        srcs = [srcs.upper()]
+    
+    if len(srcs) > 1 and "ALL" in srcs:
+        return "Argument list cannot contain 'ALL' and other sources", 400
+    if len(srcs) > 1 and "ALLGPS" in srcs:
+        return "Argument list cannot contain 'ALLGPS' and other sources", 400
+    
+    if "ALLGPS" in srcs:
+        srcs = list(ALLGPS_TBLS)
+
+    # Check src[s] for validity
+    if not verifySources(srcs):
+        raise ArgumentError(f"Argument 'src' must be included from one or more of {', '.join(SRC_MAP)}", 400)
+    return srcs
+
+
+def argParseFields(fields):
+    # Multiple fields?
+    if ',' in fields:
+        fields = [s.upper() for s in fields.split(',')]
+    else:
+        fields = [fields.upper()]
+
+    # Check field[s] for validity -- all fields must be in FIELD_MAP to pass
+    if not verifyFields(fields):
+        raise ArgumentError(f"Argument 'field' must be included from one or more of {', '.join(FIELD_MAP)}", status_code=400)
+    return fields
+
+
+def argParseDevices(devices_str:str):
+    if devices_str is None:
+        return devices_str 
+
+    if ',' in devices_str:
+        devices = [s.upper() for s in devices_str.split(',')]
+    else:
+        devices = [devices_str.upper()]
+    
+    if not verifyDeviceList(devices):
+        raise ArgumentError(f"Argument 'devices' must be 12-digit HEX string or list of strings", 400)
+    return devices
+
+
+def argParseDatetime(datetime_str:str):
+    r = parseDatetimeString(datetime_str)
+    if r is None:
+        raise ArgumentError(f"Invalid datetime format. Correct format is: \"{DATETIME_FORMAT}\"", status_code=400)
+    return r
+
+
+def argParseBBox(bbox:str):
+    if bbox is None:
+        return bbox 
+    try:
+        bb = list(map(float, bbox.split(',')))
+        if not (verifyLatLon(bb[0], bb[2]) and verifyLatLon(bb[1], bb[3])):
+            raise Exception
+        if bb[0] <= bb[2] or bb[1]<=bb[3]:
+            raise Exception
+        return bb
+    except:
+        raise ArgumentError("Argument 'bbox' error. 'bbox' must be list of latitudes and longitudes in the order of North,South,East,West.", status_code=400)
+
+
+def argParseRadius(r:float):
+    if r is None:
+        return r
+
+    if not verifyRadius(r):
+        raise ArgumentError("Argument 'radius' must be a float between 0 and 6371 (kilometers)", status_code=400)
+    return r
+
+
+def argParseCenter(c:str):
+    if c is None:
+        return c
+
+    try:
+        lat, lon = list(map(float, c.split(',')))
+        if verifyLatLon(lat, lon):
+            return (lat, lon)
+    except:
+        raise ArgumentError("Argument 'center' must be a valid pair of latitude,longitude coordinates, such as 'center=88.1,-110.2242", status_code=400)
+
+
+def argParseRadiusArgs(r:float, c:str):
+    """
+    Parse both radius and center arguments. 
+    - If neither is specified return None. 
+    - If only one is specified return error.
+    - If both are specified return the pair as a tuple
+    """
+    try:
+        x = (argParseRadius(r), argParseCenter(c))
+        if all(x): 
+            return x
+        elif not any(x): 
+            return None
+        else:
+            raise ArgumentError("Arguments 'radius' and 'center' must both be specified. Argument 'radius' must be a float between 0 and 6371 (kilometers) and argument 'center' must be a valid pair of latitude,longitude coordinates, such as 'center=88.1,-110.2242", status_code=400)
+    except ArgumentError:
+        raise
+
+
+def queryBuildFields(fields):
+    # Build the 'fields' portion of query
+    q_fields = f"""{FIELD_MAP["DEVICEID"]}, 
+                   {FIELD_MAP["TIMESTAMP"]}, 
+                   {FIELD_MAP["LATITUDE"]}, 
+                   {FIELD_MAP["LONGITUDE"]},
+                   {','.join(FIELD_MAP[field] for field in fields)}
+                """
+    return q_fields
+
+
+def queryBuildSources(srcs, query_template):
+    """
+    turns a list of bigquery table names and a query
+    template into a union of the queries across the sources
+    """
+    if srcs[0] == "ALL":
+        tbl_union = query_template % ('*')
+    elif len(srcs) == 1:
+        tbl_union = query_template % (SRC_MAP[srcs[0]])
+    else:
+        tbl_union = '(' + ' UNION ALL '.join([query_template % (SRC_MAP[s]) for s in srcs]) + ')'
+    
+    return tbl_union
 

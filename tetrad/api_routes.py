@@ -2,7 +2,9 @@ from datetime import datetime, timedelta
 from flask import request, jsonify
 import functools
 from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
-from tetrad import app, cache, admin_utils, limiter, utils 
+from tetrad import app, cache, admin_utils, limiter, utils
+from tetrad.api_consts import *
+from tetrad.classes import ArgumentError, NoDataError
 # from tetrad import gaussian_model_utils
 import json
 import numpy as np 
@@ -18,211 +20,48 @@ gcloud_logging_client.setup_logging()
 import logging
 
 
-# Get env variables
-PROJECT_ID = getenv("GOOGLE_CLOUD_PROJECT")
-BQ_DATASET_TELEMETRY = getenv("BQ_DATASET_TELEMETRY") 
-BQ_TABLE_SLC    = getenv("BQ_TABLE_SLC")
-BQ_TABLE_CHATT  = getenv("BQ_TABLE_CHATT")
-BQ_TABLE_CLEV   = getenv("BQ_TABLE_CLEV")
-BQ_TABLE_KC     = getenv("BQ_TABLE_KC")
-BQ_TABLE_BADGPS = getenv("BQ_TABLE_BADGPS")
-BQ_TABLE_GLOBAL = getenv("BQ_TABLE_GLOBAL")
-
-SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
-TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
+@app.errorhandler(ArgumentError)
+def handle_arg_error(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code 
+    return response 
 
 bq_client = Client(project=PROJECT_ID)
 elevation_interpolator = utils.setupElevationInterpolator()
-
-SRC_MAP = {
-    "SLC":    BQ_TABLE_SLC,
-    "CHATT":  BQ_TABLE_CHATT,
-    "CLEV":   BQ_TABLE_CLEV,
-    "KC":     BQ_TABLE_KC,
-    "BADGPS": BQ_TABLE_BADGPS,
-    "GLOBAL": BQ_TABLE_GLOBAL,
-    "ALL":    None,
-    "ALLGPS": None,
-}
-
-ALLGPS_TBLS = {
-    "SLC":    BQ_TABLE_SLC,
-    "CHATT":  BQ_TABLE_CHATT,
-    "CLEV":   BQ_TABLE_CLEV,
-    "KC":     BQ_TABLE_KC,
-    "GLOBAL": BQ_TABLE_GLOBAL,
-}
-
-# Field names as they appear in route arguments
-#   and their mapping to BigQuery field names
-FIELD_MAP = {
-    "TIMESTAMP":    getenv("FIELD_TS"),
-    "DEVICEID":     getenv("FIELD_ID"),
-    "LATITUDE":     getenv("FIELD_LAT"),
-    "LONGITUDE":    getenv("FIELD_LON"),
-    "ELEVATION":    getenv("FIELD_ELE"),
-    "PM1":          getenv("FIELD_PM1"),
-    "PM2_5":        getenv("FIELD_PM2"),
-    "PM10":         getenv("FIELD_PM10"),
-    "TEMPERATURE":  getenv("FIELD_TEMP"),
-    "HUMIDITY":     getenv("FIELD_HUM"),
-    "MICSRED":      getenv("FIELD_RED"),
-    "MICSNOX":      getenv("FIELD_NOX"),
-    "MICSHEATER":   getenv("FIELD_HTR"),
-}
-
-# The query-able fields
-VALID_QUERY_FIELDS = {
-    "ELEVATION":    getenv("FIELD_ELE"),
-    "PM1":          getenv("FIELD_PM1"),
-    "PM2_5":        getenv("FIELD_PM2"),
-    "PM10":         getenv("FIELD_PM10"),
-    "TEMPERATURE":  getenv("FIELD_TEMP"),
-    "HUMIDITY":     getenv("FIELD_HUM"),
-    "MICSRED":      getenv("FIELD_RED"),
-    "MICSNOX":      getenv("FIELD_NOX"),
-    "MICSHEATER":   getenv("FIELD_HTR"),
-}
-
-
-def buildFields(fields):
-    # Build the 'fields' portion of query
-    q_fields = f"""{FIELD_MAP["DEVICEID"]}, 
-                   {FIELD_MAP["TIMESTAMP"]}, 
-                   {FIELD_MAP["LATITUDE"]}, 
-                   {FIELD_MAP["LONGITUDE"]},
-                   {','.join(FIELD_MAP[field] for field in fields)}
-                """
-    return q_fields
-
-
-def buildSources(srcs, query_template):
-    """
-    turns a list of bigquery table names and a query
-    template into a union of the queries across the sources
-    """
-    if srcs[0] == "ALL":
-        tbl_union = query_template % ('*')
-    elif len(srcs) == 1:
-        tbl_union = query_template % (SRC_MAP[srcs[0]])
-    else:
-        tbl_union = '(' + ' UNION ALL '.join([query_template % (SRC_MAP[s]) for s in srcs]) + ')'
-    
-    return tbl_union
-
-
-def parseSources(srcs):
-    '''
-    Parse a 'src' argument from request.args.get('src')
-    into a list of sources
-    '''
-    if ',' in srcs:
-        srcs = [s.upper() for s in srcs.split(',')]
-    else:
-        srcs = [srcs.upper()]
-    
-    if len(srcs) > 1 and "ALL" in srcs:
-        return "Argument list cannot contain 'ALL' and other sources", 400
-    if len(srcs) > 1 and "ALLGPS" in srcs:
-        return "Argument list cannot contain 'ALLGPS' and other sources", 400
-    
-    if "ALLGPS" in srcs:
-        srcs = list(ALLGPS_TBLS)
-
-    # Check src[s] for validity
-    if not checkSources(srcs):
-        return f"Argument 'src' must be included from one or more of {', '.join(SRC_MAP)}", 400
-    return srcs, 200
-
-
-def parseFields(fields):
-    # Multiple fields?
-    if ',' in fields:
-        fields = [s.upper() for s in fields.split(',')]
-    else:
-        fields = [fields.upper()]
-
-    # Check field[s] for validity -- all fields must be in FIELD_MAP to pass
-    if not checkFields(fields):
-        return f"Argument 'field' must be included from one or more of {', '.join(FIELD_MAP)}", 400
-    return fields, 200
-
-
-def parseDevices(devices_str:str):
-    if ',' in devices_str:
-        devices = [s.upper() for s in devices_str.split(',')]
-    else:
-        devices = [devices_str.upper()]
-    
-    if not utils.validDevices(devices):
-        return f"Argument 'devices' must be 12-digit HEX string or list of strings", 400
-    return devices, 200
-    
-
-def checkSources(srcs:list):
-    return set(srcs).issubset(SRC_MAP)
-
-
-def checkFields(fields:list):
-    return set(fields).issubset(FIELD_MAP)
-
-
-def tuneDataWrapper(data, fields):
-    return utils.tuneData(
-            data,
-            pm25_key=(FIELD_MAP["PM2_5"] if FIELD_MAP["PM2_5"] in fields else None),
-            temp_key=(FIELD_MAP["TEMPERATURE"] if FIELD_MAP["TEMPERATURE"] in fields else None),
-            hum_key=(FIELD_MAP["HUMIDITY"] if FIELD_MAP["HUMIDITY"] in fields else None)
-    )
 
 
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 # @cache.cached(timeout=119)
 def liveSensors():
 
-    logging.error(request.view_args)
-    logging.error(request.args)
-    logging.error(vars(request.args))
+    def argParseDelta(delta):
+        delta = delta or (24 * 60)
+        if delta <= 0:
+            raise ArgumentError("Argument 'delta' must be a positive integer (minutes)", 400)
+        return delta
+
     req_args = [
         'src',
         'field'
     ]
 
-    r = utils.checkArgs(request.args, req_args)
-    if r[1] != 200: 
-        return r
-
     #################################
-    # Fields
-    #################################
-    fields, code = parseFields(request.args.get('field'))
-    if code != 200:
-        return fields, code
-
-    #################################
-    # Sources
-    #################################
-    srcs, code = parseSources(request.args.get('src'))
-    if code != 200:
-        return srcs, code
-    
-    #################################
-    # Delta
+    # Arg parse
     #################################
 
-    # Optional argument: 'delta' - how far in the past (minutes) to look
-    if 'delta' in request.args:
-        delta = request.args.get('delta', type=int)
-    else:
-        delta = 24 * 60
-    if delta <= 0:
-        return "Argument 'delta' must be a positive integer (minutes)", 400
+    try:
+        utils.verifyRequiredArgs(request.args, req_args)
+        srcs   = utils.argParseSources(request.args.get('src', type=str))
+        fields = utils.argParseFields(request.args.get('field', type=str))
+        delta  = argParseDelta(request.args.get('delta', type=int))
+    except ArgumentError:
+        raise
 
     #################################
     # Query Builder
     #################################
 
-    Q_FIELDS = buildFields(fields)
+    Q_FIELDS = utils.queryBuildFields(fields)
 
     # Build the 'source tables' portion of query
     Q_TBL = f"""SELECT 
@@ -234,7 +73,7 @@ def liveSensors():
             """
 
     # Union all the subqueries
-    tbl_union = buildSources(srcs, Q_TBL)
+    tbl_union = utils.queryBuildSources(srcs, Q_TBL)
 
     # Build the full query
     q = f"""
@@ -261,15 +100,13 @@ def liveSensors():
         row_num = 1;
     """
 
-    logging.error(q)
-
     query_job = bq_client.query(q)
     rows = query_job.result()
 
     data = [dict(r) for r in rows]
 
     # Clean data and apply correction factors
-    data = tuneDataWrapper(data, fields)
+    data = utils.tuneDataWrapper(data, fields)
 
     return jsonify(data), 200
 
@@ -286,7 +123,7 @@ def requestData():
     @param: bbox    (optional)  List of coordinates in this order: North, South, East, West
     @param: radius  (optional)  Radius in Kilometers
     """
-    
+
     req_args = [
         'src', 
         'field', 
@@ -294,58 +131,42 @@ def requestData():
         'end',
     ]
 
-    r, status = utils.checkArgs(request.args, req_args)
-    if status != 200: 
-        return r
-
-    srcs   = request.args.get('src', type=str)
-    fields = request.args.get('field', type=str)
-    start  = request.args.get('start', type=str)
-    end    = request.args.get('end', type=str)
-    
-    #################################
-    # Fields
-    #################################
-    fields, code = parseFields(fields)
-    if code != 200:
-        return fields, code
-
-    #################################
-    # Sources
-    #################################
-    srcs, code = parseSources(srcs)
-    if code != 200:
-        return srcs, code
+    try:
+        utils.verifyRequiredArgs(request.args, req_args)
+        
+        # Required
+        srcs    = utils.argParseSources(request.args.get('src', type=str))
+        fields  = utils.argParseFields(request.args.get('field', type=str))
+        start   = utils.argParseDatetime(request.args.get('start', type=str))
+        end     = utils.argParseDatetime(request.args.get('end', type=str))
+        
+        # Optional
+        devices = utils.argParseDevices(request.args.get('devices', type=str))
+        box     = utils.argParseBBox(request.args.getlist('box', type=str))
+        rc      = utils.argParseRadiusArgs(
+                    request.args.get('radius', type=float),
+                    request.args.get('center', type=str))
+    except ArgumentError as e:
+        raise
+    except Exception as e:
+        logging.error(str(e))
 
     #################################
-    # Datetimes
+    # Query Picker
     #################################
-
-    # Check that datetimes are valid
-    if not utils.validateDate(start) or not utils.validateDate(end):
-        msg = f"Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
-        return msg, 400
-
-    #################################
-    # Device list
-    #################################
-
-    if request.args.get('devices'):
-        devices, code = parseDevices(request.args.get('devices'))
-        if code != 200:
-            return devices, code
+    if box and rc:
+        raise ArgumentError("Must choose either 'box' or 'radius' and 'center' arguments", status_code=400)
+    elif box:
+        pass
+    elif rc:
+        pass
     else:
-        devices = None
-
-    #################################
-    # Query and Post-query
-    #################################
-    data, response = _requestDataInternal(srcs, fields, start, end, id_ls=devices)
+        _requestData(srcs, fields, start, end, id_ls=devices)
 
     return data, response
     
 
-def _requestDataInternal(srcs, fields, start, end, id_ls=None):
+def _requestData(srcs, fields, start, end, id_ls=None):
     """Function to query a field (like Temperature, Humidity, PM, etc.) 
     in date range [start, end]. Can include an ID or a list of IDs"""
 
@@ -393,246 +214,324 @@ def _requestDataInternal(srcs, fields, start, end, id_ls=None):
     data = [dict(r) for r in rows]
 
     # Clean data and apply correction factors
-    data = tuneDataWrapper(data, fields)
+    data = utils.tuneData(data, fields)
 
     # Apply correction factors to data
     return jsonify(data), 200
 
 
+def _requestDataInBox(srcs, fields, start, end, bbox, id_ls=None):
+    """
+    Function to query a field (like Temperature, Humidity, PM, etc.) 
+    or list of fields, in date range [start, end], inside a bounding
+    box. The bounding box is a tuple of (North,South,East,West) 
+    coordinates.
+    Can include an ID or a list of IDs
+    """
 
+    if id_ls:
+        idstr = utils.idsToWHEREClause(id_ls, FIELD_MAP['DEVICEID'])
+    else:
+        idstr = "True"
+
+    query_fields = utils.queryBuildFields(fields)
+
+    Q_TBL = f"""
+        SELECT 
+            {query_fields}
+        FROM 
+            `{PROJECT_ID}.{BQ_DATASET_TELEMETRY}.%s` 
+        WHERE 
+            {FIELD_MAP["TIMESTAMP"]} >= "{start}"
+                AND
+            {FIELD_MAP["TIMESTAMP"]} <= "{end}"
+                AND
+            {FIELD_MAP["LATITUDE"]}  <= "{bbox[0]}"
+                AND
+            {FIELD_MAP["LATITUDE"]}  >= "{bbox[1]}"
+                AND
+            {FIELD_MAP["LONGITUDE"]} <= "{bbox[2]}"
+                AND
+            {FIELD_MAP["LONGITUDE"]} >= "{bbox[3]}"
+    """
+
+    tbl_union = utils.queryBuildSources(srcs, Q_TBL)
+
+    # Build the query
+    q = f"""
+        SELECT
+            {query_fields}
+        FROM 
+            ({tbl_union})
+        WHERE
+            {idstr}
+        ORDER BY
+            {FIELD_MAP["TIMESTAMP"]};        
+    """
+
+    # Run the query and collect the result
+    query_job = bq_client.query(q)
+    rows = query_job.result()
+    
+    # break on empty iterator
+    if rows.total_rows == 0:
+        raise NoDataError("No data returned", status_code=204)
+        
+    # Convert Response object (generator) to list-of-dicts
+    data = [dict(r) for r in rows]
+
+    # Clean data and apply correction factors
+    data = utils.tuneData(data, fields)
+
+    # Apply correction factors to data
+    return data
+
+
+def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None):
+    """
+    Function to query a field (like Temperature, Humidity, PM, etc.) 
+    or list of fields, in date range [start, end], inside a given
+    radius. The radius is in kilometers and center is the (Lat,Lon) 
+    center of the circle.
+    Can include an ID or a list of IDs.
+    """
+    bbox = utils.convertRadiusToBBox(radius, center)
+    data = _requestDataInBox(srcs, fields, start, end, bbox, id_ls=id_ls)
+    data = utils.bboxDataToRadiusData(data, radius, center)
+    return data
 
 #http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
 @app.route("/getEstimateMap", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
 # @admin_utils.ingroup('admin')
 # @limiter.limit('1/minute')
-def getEstimateMap():
-    """
-    lat_hi
-    lat_lo
-    lon_hi
-    lon_lo
-    lat_size
-    lon_size
-    date
+# def getEstimateMap():
+#     """
+#     lat_hi
+#     lat_lo
+#     lon_hi
+#     lon_lo
+#     lat_size
+#     lon_size
+#     date
     
-    """
-    # this species grid positions should be interpolated in UTM coordinates
-    if "UTM" in request.args:
-        UTM = True
-    else:
-        UTM = False
+#     """
+#     # this species grid positions should be interpolated in UTM coordinates
+#     if "UTM" in request.args:
+#         UTM = True
+#     else:
+#         UTM = False
 
-    # Get the arguments from the query string
-    if not UTM:
-        try:
-            lat_hi = float(request.args.get('lat_hi'))
-            lat_lo = float(request.args.get('lat_lo'))
-            lon_hi = float(request.args.get('lon_hi'))
-            lon_lo = float(request.args.get('lon_lo'))
-        except ValueError:
-            return 'lat, lon, lat_res, be floats in the lat-lon (not UTM) case', 400
-        try:
-            lat_size = int(request.args.get('lat_size'))
-            lon_size = int(request.args.get('lon_size'))
-        except ValueError:
-            return 'lat, lon, sizes must be ints (not UTM) case', 400
+#     # Get the arguments from the query string
+#     if not UTM:
+#         try:
+#             lat_hi = float(request.args.get('lat_hi'))
+#             lat_lo = float(request.args.get('lat_lo'))
+#             lon_hi = float(request.args.get('lon_hi'))
+#             lon_lo = float(request.args.get('lon_lo'))
+#         except ValueError:
+#             return 'lat, lon, lat_res, be floats in the lat-lon (not UTM) case', 400
+#         try:
+#             lat_size = int(request.args.get('lat_size'))
+#             lon_size = int(request.args.get('lon_size'))
+#         except ValueError:
+#             return 'lat, lon, sizes must be ints (not UTM) case', 400
 
-        lat_res = (lat_hi-lat_lo)/float(lat_size)
-        lon_res = (lon_hi-lon_lo)/float(lon_size)
+#         lat_res = (lat_hi-lat_lo)/float(lat_size)
+#         lon_res = (lon_hi-lon_lo)/float(lon_size)
 
-    query_date = request.args.get('date')
-    if not utils.validateDate(query_date):
-        msg = f"Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
-        return msg, 400
+#     query_date = request.args.get('date')
+#     if not utils.validateDate(query_date):
+#         msg = f"Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
+#         return msg, 400
 
-    query_datetime = utils.parseDateString(query_date)
+#     query_datetime = utils.parseDateString(query_date)
 
-    print((
-        f"Query parameters: lat_lo={lat_lo} lat_hi={lat_hi}  lon_lo={lon_lo} lon_hi={lon_hi} lat_res={lat_res} lon_res={lon_res} date={query_datetime}"
-    ))
+#     print((
+#         f"Query parameters: lat_lo={lat_lo} lat_hi={lat_hi}  lon_lo={lon_lo} lon_hi={lon_hi} lat_res={lat_res} lon_res={lon_res} date={query_datetime}"
+#     ))
 
-    # step 0, load up the bounding box from file and check that request is within it
-    bounding_box_vertices = utils.loadBoundingBox()
-    print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
+#     # step 0, load up the bounding box from file and check that request is within it
+#     bounding_box_vertices = utils.loadBoundingBox()
+#     print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
 
-    if not (
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_lo) and
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_hi) and
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_hi) and
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_lo)):
-        return 'One of the query locations is outside of the bounding box for the database', 400
+#     if not (
+#         utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_lo) and
+#         utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_hi) and
+#         utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_hi) and
+#         utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_lo)):
+#         return 'One of the query locations is outside of the bounding box for the database', 400
 
-    # step 1, load up correction factors from file
-    correction_factors = utils.loadCorrectionFactors()
-    print(f'Loaded {len(correction_factors)} correction factors.')
+#     # step 1, load up correction factors from file
+#     correction_factors = utils.loadCorrectionFactors()
+#     print(f'Loaded {len(correction_factors)} correction factors.')
 
-    # step 2, load up length scales from file
-    length_scales = utils.loadLengthScales()
-    print(f'Loaded {len(length_scales)} length scales.')
+#     # step 2, load up length scales from file
+#     length_scales = utils.loadLengthScales()
+#     print(f'Loaded {len(length_scales)} length scales.')
 
-    print('Loaded length scales:', length_scales, '\n')
-    length_scales = utils.getScalesInTimeRange(length_scales, query_datetime, query_datetime)
-    if len(length_scales) < 1:
-        msg = (
-            f"Incorrect number of length scales({len(length_scales)}) "
-            f"found in between {query_datetime}-1day and {query_datetime}+1day"
-        )
-        return msg, 400
+#     print('Loaded length scales:', length_scales, '\n')
+#     length_scales = utils.getScalesInTimeRange(length_scales, query_datetime, query_datetime)
+#     if len(length_scales) < 1:
+#         msg = (
+#             f"Incorrect number of length scales({len(length_scales)}) "
+#             f"found in between {query_datetime}-1day and {query_datetime}+1day"
+#         )
+#         return msg, 400
 
-    latlon_length_scale = length_scales[0]['latlon']
-    elevation_length_scale = length_scales[0]['elevation']
-    time_length_scale = length_scales[0]['time']
+#     latlon_length_scale = length_scales[0]['latlon']
+#     elevation_length_scale = length_scales[0]['elevation']
+#     time_length_scale = length_scales[0]['time']
 
-    print(
-        f'Using length scales: latlon={latlon_length_scale} elevation={elevation_length_scale} time={time_length_scale}'
-    )
+#     print(
+#         f'Using length scales: latlon={latlon_length_scale} elevation={elevation_length_scale} time={time_length_scale}'
+#     )
 
-  # step 3, query relevent data
-  # for this compute a circle center at the query volume.  Radius is related to lenth scale + the size fo the box.
-    lat = (lat_lo + lat_hi)/2.0
-    lon = (lon_lo + lon_hi)/2.0
-#    NUM_METERS_IN_MILE = 1609.34
-#    radius = latlon_length_scale / NUM_METERS_IN_MILE  # convert meters to miles for db query
+#     # step 3, query relevent data
+#     # for this compute a circle center at the query volume.  Radius is related to lenth scale + the size fo the box.
+#     lat = (lat_lo + lat_hi)/2.0
+#     lon = (lon_lo + lon_hi)/2.0
+#     #    NUM_METERS_IN_MILE = 1609.34
+#     #    radius = latlon_length_scale / NUM_METERS_IN_MILE  # convert meters to miles for db query
 
-    UTM_N_hi, UTM_E_hi, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
-    UTM_N_lo, UTM_E_lo, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
-# compute the length of the diagonal of the lat-lon box.  This units here are **meters**
-    lat_diff = UTM_N_hi - UTM_N_lo
-    lon_diff = UTM_E_hi - UTM_E_lo
-    print(f'SPACE_KERNEL_FACTOR_PADDING= {type(SPACE_KERNEL_FACTOR_PADDING)}\nlatlon_length_scale={type(latlon_length_scale)}\nlat_diff={type(lat_diff)}\nlon_diff={type(lon_diff)}')
-    radius = SPACE_KERNEL_FACTOR_PADDING*latlon_length_scale + np.sqrt(lat_diff**2 + lon_diff**2)/2.0
+#     UTM_N_hi, UTM_E_hi, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
+#     UTM_N_lo, UTM_E_lo, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
+#     # compute the length of the diagonal of the lat-lon box.  This units here are **meters**
+#     lat_diff = UTM_N_hi - UTM_N_lo
+#     lon_diff = UTM_E_hi - UTM_E_lo
+#     print(f'SPACE_KERNEL_FACTOR_PADDING= {type(SPACE_KERNEL_FACTOR_PADDING)}\nlatlon_length_scale={type(latlon_length_scale)}\nlat_diff={type(lat_diff)}\nlon_diff={type(lon_diff)}')
+#     radius = SPACE_KERNEL_FACTOR_PADDING*latlon_length_scale + np.sqrt(lat_diff**2 + lon_diff**2)/2.0
 
-    if not ((zone_num_lo == zone_num_hi) and (zone_let_lo == zone_let_hi)):
-        return 'Requested region spans UTM zones', 400        
+#     if not ((zone_num_lo == zone_num_hi) and (zone_let_lo == zone_let_hi)):
+#         return 'Requested region spans UTM zones', 400        
 
 
-#    radius = latlon_length_scale / 70000 + box_diag/2.0
-    # sensor_data = request_model_data_local(
-    #     lats=lat,
-    #     lons=lon,
-    #     radius=radius,
-    #     start_date=query_datetime - TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale),
-    #     end_date=query_datetime + TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale))
+#     #    radius = latlon_length_scale / 70000 + box_diag/2.0
+#     # sensor_data = request_model_data_local(
+#     #     lats=lat,
+#     #     lons=lon,
+#     #     radius=radius,
+#     #     start_date=query_datetime - TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale),
+#     #     end_date=query_datetime + TIME_KERNEL_FACTOR_PADDING*timedelta(hours=time_length_scale))
     
-    # Convert dates to strings
-    start = query_datetime - TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
-    start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = query_datetime + TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
-    end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
+#     # Convert dates to strings
+#     start = query_datetime - TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
+#     start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
+#     end = query_datetime + TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
+#     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    print(f'Start: {start_str}\nEnd: {end_str}')
+#     print(f'Start: {start_str}\nEnd: {end_str}')
 
-    sensor_data = _requestFieldInRadius(
-        src_tbl=SRC_MAP['SLC'],
-        field='PM2_5',
-        lat=lat,
-        lon=lon,
-        radius=radius,
-        start=start_str,
-        end=end_str
-    )
+#     sensor_data = _requestFieldInRadius(
+#         src_tbl=SRC_MAP['SLC'],
+#         field='PM2_5',
+#         lat=lat,
+#         lon=lon,
+#         radius=radius,
+#         start=start_str,
+#         end=end_str
+#     )
 
-    # If it's a tuple then it returned a response code
-    # TODO: Fix this, it is so weird. 
-    if isinstance(sensor_data, tuple):
-        return sensor_data
+#     # If it's a tuple then it returned a response code
+#     # TODO: Fix this, it is so weird. 
+#     if isinstance(sensor_data, tuple):
+#         return sensor_data
 
-    # print("sensor data:", sensor_data)
-    unique_sensors = {datum['DeviceID'] for datum in sensor_data}
-    print(f'Loaded {len(sensor_data)} data points for {len(unique_sensors)} unique devices from bgquery.')
+#     # print("sensor data:", sensor_data)
+#     unique_sensors = {datum['DeviceID'] for datum in sensor_data}
+#     print(f'Loaded {len(sensor_data)} data points for {len(unique_sensors)} unique devices from bgquery.')
 
-    # step 3.5, convert lat/lon to UTM coordinates
-    try:
-        utils.convertLatLonToUTM(sensor_data)
-    except ValueError as err:
-        return f'{str(err)}', 400
+#     # step 3.5, convert lat/lon to UTM coordinates
+#     try:
+#         utils.convertLatLonToUTM(sensor_data)
+#     except ValueError as err:
+#         return f'{str(err)}', 400
 
-    # # Step 4, parse sensor type from the version
-    # sensor_source_to_type = {'AirU': '3003', 'PurpleAir': '5003', 'DAQ': '0000'}
-    # for datum in sensor_data:
-    #     datum['type'] = sensor_source_to_type[datum['SensorSource']]
+#     # # Step 4, parse sensor type from the version
+#     # sensor_source_to_type = {'AirU': '3003', 'PurpleAir': '5003', 'DAQ': '0000'}
+#     # for datum in sensor_data:
+#     #     datum['type'] = sensor_source_to_type[datum['SensorSource']]
 
-    # print(f'Fields: {sensor_data[0].keys()}')
+#     # print(f'Fields: {sensor_data[0].keys()}')
 
-    # step 4.5, Data Screening
-    print('Screening data')
-    sensor_data = utils.removeInvalidSensors(sensor_data)
+#     # step 4.5, Data Screening
+#     print('Screening data')
+#     sensor_data = utils.removeInvalidSensors(sensor_data)
 
-    # Correction factors applied automatically in _requestFieldInRadius()
-    #     # step 5, apply correction factors to the data
-    # for datum in sensor_data:
-    #     datum['PM2_5'] = utils.applyCorrectionFactor(correction_factors, datum['time'], datum['PM2_5'], datum['type'])
+#     # Correction factors applied automatically in _requestFieldInRadius()
+#     #     # step 5, apply correction factors to the data
+#     # for datum in sensor_data:
+#     #     datum['PM2_5'] = utils.applyCorrectionFactor(correction_factors, datum['time'], datum['PM2_5'], datum['type'])
 
-    # step 6, add elevation values to the data
-    for datum in sensor_data:
-        if 'Elevation' not in datum:
-            datum['Elevation'] = elevation_interpolator([datum['Longitude']],[datum['Latitude']])[0]
+#     # step 6, add elevation values to the data
+#     for datum in sensor_data:
+#         if 'Elevation' not in datum:
+#             datum['Elevation'] = elevation_interpolator([datum['Longitude']],[datum['Latitude']])[0]
 
-    # step 7, Create Model
-    model, time_offset = gaussian_model_utils.createModel(
-        sensor_data, latlon_length_scale, elevation_length_scale, time_length_scale)
-
-    
-# step 8, build the grid of query locations
-    if not UTM:
-
-        # TODO: Create function interpolateQueryLocations()
-        #   Tom Made one that might be correct
-        lon_vector, lat_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size)
-#        locations_UTM = utm.from_latlon(query_locations_latlon)
-    else:
-        # step 7.5, convert query box to UTM -- do the two far corners and hope for the best
-#        lat_lo_UTM, lon_lo_UTM, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
-#        lat_hi_UTM, lon_hi_UTM, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
-#        query_locations_UTM = utils.interpolateQueryLocations(lat_lo_UTM, lat_hi_UTM, lon_lo_UTM, lon_hi_UTM, spatial_res)
-#        query_locations_
-        return 'UTM not yet supported', 400
+#     # step 7, Create Model
+#     model, time_offset = gaussian_model_utils.createModel(
+#         sensor_data, latlon_length_scale, elevation_length_scale, time_length_scale)
 
     
-#######################
-# Ross was here
-#######################
+#     # step 8, build the grid of query locations
+#     if not UTM:
 
-    # locations_lat = locations_lat.flatten()
-    # locations_lon = locations_lon.flatten()
-#    print(locations_lat.shape)
-#    print(locations_lon.shape)
-    elevations = elevation_interpolator(lon_vector, lat_vector)
-    print(elevations.shape)
+#         # TODO: Create function interpolateQueryLocations()
+#         #   Tom Made one that might be correct
+#         lon_vector, lat_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size)
+#     #        locations_UTM = utm.from_latlon(query_locations_latlon)
+#     else:
+#         # step 7.5, convert query box to UTM -- do the two far corners and hope for the best
+#     #        lat_lo_UTM, lon_lo_UTM, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
+#     #        lat_hi_UTM, lon_hi_UTM, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
+#     #        query_locations_UTM = utils.interpolateQueryLocations(lat_lo_UTM, lat_hi_UTM, lon_lo_UTM, lon_hi_UTM, spatial_res)
+#     #        query_locations_
+#         return 'UTM not yet supported', 400
 
-    locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
-    # print("B")
-    # print(locations_lat)
-    # print(locations_lon)
+    
+#     #######################
+#     # Ross was here
+#     #######################
 
-    locations_lat = locations_lat.flatten()
-    locations_lon = locations_lon.flatten()
-    elevations = elevations.flatten()
-    # print("C")
-    # print(locations_lat)
-    # print(locations_lon)
+#     # locations_lat = locations_lat.flatten()
+#     # locations_lon = locations_lon.flatten()
+#     #    print(locations_lat.shape)
+#     #    print(locations_lon.shape)
+#     elevations = elevation_interpolator(lon_vector, lat_vector)
+#     print(elevations.shape)
 
-    # print("D")
-    # print(locations_lat.reshape((lat_size, lon_size)))
-    # print(locations_lon.reshape((lat_size, lon_size)))
+#     locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
+#     # print("B")
+#     # print(locations_lat)
+#     # print(locations_lon)
+
+#     locations_lat = locations_lat.flatten()
+#     locations_lon = locations_lon.flatten()
+#     elevations = elevations.flatten()
+#     # print("C")
+#     # print(locations_lat)
+#     # print(locations_lon)
+
+#     # print("D")
+#     # print(locations_lat.reshape((lat_size, lon_size)))
+#     # print(locations_lon.reshape((lat_size, lon_size)))
 
 
-    yPred, yVar = gaussian_model_utils.estimateUsingModel(
-        model, locations_lat, locations_lon, elevations, [query_datetime], time_offset)
+#     yPred, yVar = gaussian_model_utils.estimateUsingModel(
+#         model, locations_lat, locations_lon, elevations, [query_datetime], time_offset)
 
-    elevations = (elevations.reshape((lat_size, lon_size))).tolist()
-    yPred = yPred.reshape((lat_size, lon_size))
-    yVar = yVar.reshape((lat_size, lon_size))
-    estimates = yPred.tolist()
-    variances = yVar.tolist()
+#     elevations = (elevations.reshape((lat_size, lon_size))).tolist()
+#     yPred = yPred.reshape((lat_size, lon_size))
+#     yVar = yVar.reshape((lat_size, lon_size))
+#     estimates = yPred.tolist()
+#     variances = yVar.tolist()
 
-    return jsonify({
-            "Elevations": elevations, 
-            "PM2.5": estimates, 
-            "PM2.5 variance": variances, 
-            "Latitudes": lat_vector.tolist(), 
-            "Longitudes": lon_vector.tolist()
-        })
+#     return jsonify({
+#             "Elevations": elevations, 
+#             "PM2.5": estimates, 
+#             "PM2.5 variance": variances, 
+#             "Latitudes": lat_vector.tolist(), 
+#             "Longitudes": lon_vector.tolist()
+#         })
 
 
 # @app.route("/requestFieldInRadius", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))

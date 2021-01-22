@@ -26,7 +26,6 @@ app.config["CACHE_TYPE"] = "simple"
 app.config["CACHE_DEFAULT_TIMEOUT"] = 1
 app.config['CORS_HEADERS'] = 'Content-Type'
 
-
 init(app)
 
 limiter = Limiter(
