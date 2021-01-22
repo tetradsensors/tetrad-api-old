@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import pytz
 from flask import request, jsonify
 import functools
 from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
@@ -381,8 +382,8 @@ def getEstimateMap():
     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     sensor_data = _requestDataInRadius(
-        srcs=[SRC_MAP['SLC']], 
-        fields=[FIELD_MAP['PM2_5'],FIELD_MAP['ELEVATION']], 
+        srcs=["SLC"], 
+        fields=['PM2_5', 'ELEVATION'], 
         start=start_str, 
         end=end_str, 
         radius=radius, 

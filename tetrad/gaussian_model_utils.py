@@ -3,6 +3,7 @@ import pytz
 import numpy
 from tetrad import gaussian_model
 from tetrad import utils
+from tetrad.api_consts import *
 import torch
 import statistics
 
@@ -56,7 +57,7 @@ def createTimeVector(sensor_data, time_lo_bound = -1.0, time_hi_bound = -1.0):
     lowest_bin_number = None
 
     for datum in sensor_data:
-        this_time = datum['time']
+        this_time = datum[FIELD_MAP["TIMESTAMP"]]
 #  you only fill in the bin stuff for the dates that are in range
         if (not time_bounds) or ((this_time >= time_lo_bound) and (this_time <= time_hi_bound)):
             bin_number = getTimeCoordinateBin(this_time)
@@ -68,7 +69,7 @@ def createTimeVector(sensor_data, time_lo_bound = -1.0, time_hi_bound = -1.0):
 
 #  you only fill in the bin stuff for the dates that are in range
     for datum in sensor_data:
-        this_time = datum['time']
+        this_time = datum[FIELD_MAP["TIMESTAMP"]]
         if (not time_bounds) or ((this_time >= time_lo_bound) and (this_time <= time_hi_bound)):
             datum[TIME_COORDINATE_BIN_NUMBER_KEY] -= lowest_bin_number
 
@@ -88,41 +89,30 @@ def assignTimeData(sensor_data, device_location_map, time_offset, time_lo_bound 
 # This loads the device_location_map with a set of bins, and each bin contains all of the measurements associated with that bin and that device.  Later we will average these or choose one of them (median)
     time_bounds = not ( (time_lo_bound == -1.0) or (time_hi_bound == -1.0) )
     for datum in sensor_data:
-        this_time = datum['time']
+        this_time = datum[FIELD_MAP["TIMESTAMP"]]
         if (not time_bounds) or ((this_time >= time_lo_bound) and (this_time <= time_hi_bound)):
             bin_number = getTimeCoordinateBin(this_time) - time_offset
-            this_id = datum['ID']
+            this_id = datum[FIELD_MAP["DEVICEID"]]
             if not (bin_number in device_location_map[this_id][TIME_MAP_INDEX]):
-                device_location_map[this_id][TIME_MAP_INDEX].update({bin_number:{datum['PM2_5']}})
+                device_location_map[this_id][TIME_MAP_INDEX].update({bin_number:{datum[FIELD_MAP["PM2_5"]]}})
             else:
-                device_location_map[this_id][TIME_MAP_INDEX][bin_number].add(datum['PM2_5'])
-    # this is already done in createTimeVector() -- do we need this
-    # datum[TIME_COORDINATE_BIN_NUMBER_KEY] = bin_number
-
-    # for key in device_location_map.keys():
-    #     loc = device_location_map[key]
-    #     if loc[SPACE_COORD_INDEX] <= 5:
-    #         print(loc)
-    #         print(loc[SPACE_COORD_INDEX])
-    #         print(loc[UTM_X_INDEX])
-    #         print(loc[TIME_MAP_INDEX])
+                device_location_map[this_id][TIME_MAP_INDEX][bin_number].add(datum[FIELD_MAP["PM2_5"]])
 
 
+# def createSpaceVector(sensor_data):
+#     for datum in sensor_data:
+#         if datum['ID'] not in device_location_map:
+#             device_location_map[datum['ID']] = (datum['utm_x'], datum['utm_y'], datum['Altitude'])
 
-def createSpaceVector(sensor_data):
-    for datum in sensor_data:
-        if datum['ID'] not in device_location_map:
-            device_location_map[datum['ID']] = (datum['utm_x'], datum['utm_y'], datum['Altitude'])
+#     space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
+#     for key in device_location_map.keys():
+#         loc = device_location_map[key]
+#         toadd = numpy.asarray([loc[0], loc[1], loc[2]])
+#         toadd = numpy.expand_dims(toadd, axis=0)
+#         space_coordinates = numpy.append(space_coordinates, toadd, axis=0)
+#         device_location_map[key] = space_coordinates.shape[0] - 1
 
-    space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
-    for key in device_location_map.keys():
-        loc = device_location_map[key]
-        toadd = numpy.asarray([loc[0], loc[1], loc[2]])
-        toadd = numpy.expand_dims(toadd, axis=0)
-        space_coordinates = numpy.append(space_coordinates, toadd, axis=0)
-        device_location_map[key] = space_coordinates.shape[0] - 1
-
-    return space_coordinates, device_location_map
+#     return space_coordinates, device_location_map
 
 # this builds up the first instance of the device_location_map
 # sucessive calls will process and fill in the time data
@@ -132,9 +122,9 @@ def createSpaceVector2(sensor_data, time_array_size):
 
     # the time array allows us to keep track of how many entries this sensor has within each time bin
     for datum in sensor_data:
-        if datum['ID'] not in device_location_map:
+        if datum[FIELD_MAP['DEVICEID']] not in device_location_map:
             # for the meaning of these entries, see the index set at top of file
-            device_location_map[datum['ID']] = [datum['utm_x'], datum['utm_y'], datum['Altitude'], -1, {}, numpy.full((time_array_size), -1.0)]
+            device_location_map[datum[FIELD_MAP['DEVICEID']]] = [datum['utm_x'], datum['utm_y'], datum[FIELD_MAP['ELEVATION']], -1, {}, numpy.full((time_array_size), -1.0)]
 
     space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
     for key in device_location_map.keys():
@@ -227,7 +217,7 @@ def getSensorIDByUTMCoords(sensor_data, utm_x, utm_y):
     target_sensor_id = -1
     for datum in sensor_data:
         if utm_x==datum['utm_x'] and utm_y==datum['utm_y']:
-            target_sensor_id = datum['ID']
+            target_sensor_id = datum[FIELD_MAP['DEVICEID']]
     return target_sensor_id
 
 # for debuging to check raw data against matrix data
@@ -244,9 +234,9 @@ def setupDataMatrix(sensor_data, space_coordinates, time_coordinates, device_loc
     print(time_coordinates.shape)
     for datum in sensor_data:
         date_index = numpy.nonzero(time_coordinates == datum[TIME_COORDINATE_BIN_NUMBER_KEY])[0][0]
-        location_index = device_location_map[datum['ID']]
+        location_index = device_location_map[datum[FIELD_MAP['DEVICEID']]]
         # bound sensor data below by 0
-        data_matrix[location_index][date_index] = datum['PM2_5'] if datum['PM2_5'] >= 0 else 0
+        data_matrix[location_index][date_index] = datum[FIELD_MAP['PM2_5']] if datum[FIELD_MAP['PM2_5']] >= 0 else 0
 
 #    saveMatrixToFile(data_matrix, '1matrix.txt')
     interpolateBadElements(data_matrix,-1)

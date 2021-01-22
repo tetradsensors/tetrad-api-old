@@ -22,8 +22,7 @@ def parseDatetimeString(datetime_string:str):
     """Parse date string into a datetime object"""
     if not verifyDateString(datetime_string): 
         return None
-    # return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('US/Mountain'))
-    return datetime.strptime(datetime_string, DATETIME_FORMAT)
+    return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('UTC'))
 
 
 def datetimeToBigQueryTimestamp(date):

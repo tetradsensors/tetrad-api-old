@@ -13,6 +13,8 @@ import torch.nn as nn
 import numpy as np
 import math
 import scipy
+from scipy.fft import fft
+
 
 
 JITTER = 1e-6
@@ -65,7 +67,7 @@ def buildKernelCirculantMatrix(size, kernel, bandwidth=1.0):
 
 #uses the fft to compute the inverse of a circulant matrix, specified by the first column as input
 def circulantMatrixInverse(vector):
-    v_fft = scipy.fft(vector)
+    v_fft = fft(vector)
     size = vector.shape[0]
     array = np.zeros([size, size], dtype=np.complex_)
     for i in range(size):
@@ -76,7 +78,7 @@ def circulantMatrixInverse(vector):
 
 #uses the fft to compute the complex eigen values/vectors of a circulant matrix, specified by the first column as input
 def circulantMatrixEigen(vector):
-    v_fft = scipy.fft.fft(vector)
+    v_fft = fft(vector)
     size = vector.shape[0]
     array = np.zeros([size, size], dtype=np.complex_)
     for i in range(size):
@@ -98,7 +100,7 @@ def circulantMatrixEigen(vector):
 
 # This works and has been tested
 def symCirculantMatrixEigen(vector):
-    v_fft = np.real(scipy.fft.fft(vector))
+    v_fft = np.real(fft(vector))
 #    print("fft")
 #    print(v_fft)
     size = vector.shape[0]
