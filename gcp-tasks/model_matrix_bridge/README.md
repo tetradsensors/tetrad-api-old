@@ -12,5 +12,5 @@ gcloud scheduler jobs create pubsub model_matrix_brige --schedule "*/15 * * * *"
 ```
 Deploy Function:
 ```bash
-gcloud functions deploy model_matrix_bridge --entry-point main --runtime python38 --trigger-resource trigger_model_matrix_bridge --trigger-event google.pubsub.topic.publish --timeout 540s
+gcloud functions deploy model_matrix_bridge --entry-point main --runtime python38 --trigger-resource trigger_model_matrix_bridge --trigger-event google.pubsub.topic.publish --timeout 540s --env-vars-file .env.yaml
 ```

@@ -13,7 +13,14 @@ from pprint import pprint
 #########################
 
 
-URL_TEMPLATE = f"""{getenv("URL_BASE")}?lat_lo=%f&lon_lo=%f&lat_hi=%f&lon_hi=%f&lat_size={getenv("LAT_SIZE")}&lon_size={getenv("LON_SIZE")}&date=%s"""
+LAT_SIZE = int(getenv("LAT_SIZE"))
+LON_SIZE = int(getenv("LON_SIZE"))
+MAX_AGE  = int(getenv("FS_MAX_DOC_AGE_DAYS"))
+
+URL_TEMPLATE = f"""{getenv("URL_BASE")}?lat_lo=%f&lon_lo=%f&lat_hi=%f&lon_hi=%f&lat_size={LAT_SIZE}&lon_size={LON_SIZE}&date=%s"""
+FS_CLIENT = firestore.Client()
+FS_COL = FS_CLIENT.collection(getenv("FS_COLLECTION"))
+
 
 def _add_tags(model_data, region, date_obj):
     model_data['region']   = region['name']
@@ -22,8 +29,8 @@ def _add_tags(model_data, region, date_obj):
     model_data['lat_hi']   = region['lat_hi']
     model_data['lon_lo']   = region['lon_lo']
     model_data['lon_hi']   = region['lon_hi']
-    model_data['lat_size'] = int(getenv("LAT_SIZE"))
-    model_data['lon_size'] = int(getenv("LON_SIZE"))
+    model_data['lat_size'] = LAT_SIZE
+    model_data['lon_size'] = LON_SIZE
     model_data['date']     = date_obj
     return model_data 
 
@@ -76,7 +83,7 @@ def processRegion(region):
 
 
 def removeOldDocuments():
-    age = int(getenv("FS_MAX_DOC_AGE_DAYS"))
+    age = MAX_AGE
     date_threshold = datetime.datetime.utcnow() - datetime.timedelta(days=age)
     print(date_threshold)
     docs = FS_COL.where('date', '<=', date_threshold).stream()
@@ -102,6 +109,4 @@ def main(data, context):
 
 
 if __name__ == '__main__':
-    FS_CLIENT = firestore.Client()
-    FS_COL = FS_CLIENT.collection(getenv("FS_COLLECTION"))
     main('data', 'context')
