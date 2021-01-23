@@ -39,7 +39,6 @@ def main(data, context):
         data_f.append(bq)
 
     row_ids_unique = list(map(_hash, data_f))
-    print(len(row_ids_unique))
     errors = bq_client.insert_rows_json(
                 table=table,
                 json_rows=data_f,

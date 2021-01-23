@@ -9,9 +9,9 @@ Here are the gcloud commands used to deploy the Function and Scheduler job:
 
 Deploy Scheduler Job:
 ```bash
-gcloud scheduler jobs create pubsub get_aqandu_airu --schedule "*/1 * * * *" --topic trigger_get_aqandu_airu --message-body "PewPew"
+gcloud scheduler jobs create pubsub aqandu_bq_bridge --schedule "*/1 * * * *" --topic trigger_aqandu_bq_bridge --message-body "PewPew"
 ```
 Deploy Function:
 ```bash
-gcloud functions deploy get_aqandu_airu --entry-point main --runtime python38 --trigger-resource trigger_get_aqandu_airu --trigger-event google.pubsub.topic.publish --timeout 540s --env-vars-file .env.yaml
+gcloud functions deploy aqandu_bq_bridge --entry-point main --runtime python38 --trigger-resource trigger_aqandu_bq_bridge --trigger-event google.pubsub.topic.publish --timeout 540s --env-vars-file .env.yaml
 ```
