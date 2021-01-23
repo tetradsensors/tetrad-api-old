@@ -1,8 +1,9 @@
-import os 
+from os import getenv
 import logging
 import datetime
 import requests
-from google.cloud import firestore
+import json
+from google.cloud import firestore, storage
 from pprint import pprint
 
 
@@ -12,28 +13,18 @@ from pprint import pprint
 #########################
 
 
-# Globals
-PROJECT_ID = "us-ignite"
-FIRESTORE_COLLECTION= "model"
-FIRESTORE_DOCUMENT_PREFIX= "estimate_map_"
-URL_BASE= "https://us-ignite.wm.r.appspot.com/api/getEstimateMap"
-LAT_LO= 40.644519
-LAT_HI= 40.806852
-LON_LO= -111.971465
-LON_HI= -111.811118
-LAT_SIZE= 10
-LON_SIZE= 10
+URL_TEMPLATE = f"""{getenv("URL_BASE")}?lat_lo=%f&lon_lo=%f&lat_hi=%f&lon_hi=%f&lat_size={getenv("LAT_SIZE")}&lon_size={getenv("LON_SIZE")}&date=%s"""
 
-
-def _add_tags(model_data, dt_str):
-    model_data['lat_lo'] = LAT_LO
-    model_data['lat_hi'] = LAT_HI
-    model_data['lon_lo'] = LON_LO
-    model_data['lon_hi'] = LON_HI
-    model_data['lat_size'] = LAT_SIZE
-    model_data['lon_size'] = LON_SIZE
-    model_data['date'] = dt_str
-    print('Added tags...')
+def _add_tags(model_data, region, date_obj):
+    model_data['region']   = region['name']
+    model_data['table']    = region['table']
+    model_data['lat_lo']   = region['lat_lo']
+    model_data['lat_hi']   = region['lat_hi']
+    model_data['lon_lo']   = region['lon_lo']
+    model_data['lon_hi']   = region['lon_hi']
+    model_data['lat_size'] = int(getenv("LAT_SIZE"))
+    model_data['lon_size'] = int(getenv("LON_SIZE"))
+    model_data['date']     = date_obj
     return model_data 
 
 
@@ -48,9 +39,50 @@ def _reformat_2dlist(model_data):
 
         except TypeError:   # value wasn't supscriptable (not list of lists), just keep going
             continue
-
-    print('Reformatted list-of-lists to dict-of-lists')
     return model_data 
+
+
+def getModelBoxes():
+    gs_client = storage.Client()
+    bucket = gs_client.get_bucket(getenv("GS_BUCKET"))
+    blob = bucket.get_blob(getenv("GS_MODEL_BOXES"))
+    model_data = json.loads(blob.download_as_string())
+    return model_data
+
+
+def processRegion(region):
+    date_obj = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+    date_str = date_obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+    URL = URL_TEMPLATE % (
+        region['lat_lo'],
+        region['lon_lo'],
+        region['lat_hi'],
+        region['lon_hi'],
+        date_str
+    )
+    
+    resp = requests.get(URL)
+    if resp.status_code == 200:
+        model_data = dict(resp.json())
+        
+        model_data = _reformat_2dlist(model_data)
+        model_data = _add_tags(model_data, region, date_obj)
+        ret = FS_COL.document(f'{region["qsrc"]}_{date_str}').set(model_data)
+
+        return ret 
+
+    else:
+        return None 
+
+
+def removeOldDocuments():
+    age = int(getenv("FS_MAX_DOC_AGE_DAYS"))
+    date_threshold = datetime.datetime.utcnow() - datetime.timedelta(days=age)
+    print(date_threshold)
+    docs = FS_COL.where('date', '<=', date_threshold).stream()
+    for doc in docs:
+        FS_COL.document(doc.id).delete()
+
 
 
 def main(data, context):
@@ -60,26 +92,16 @@ def main(data, context):
         context (google.cloud.functions.Context): Metadata for the event.
     """
 
-    client = firestore.Client()
-    collection = client.collection(FIRESTORE_COLLECTION)
+    model_data = getModelBoxes()
+    
+    for region in model_data:
+        processRegion(region)
 
-    DT_QUERY_STR = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    removeOldDocuments()
 
-    URL = f"""{URL_BASE}?lat_lo={LAT_LO}&lon_lo={LON_LO}&lat_hi={LAT_HI}&lon_hi={LON_HI}&lat_size={LAT_SIZE}&lon_size={LON_SIZE}&date={DT_QUERY_STR}"""
-    print(URL)
-    resp = requests.get(URL)
-    if resp.status_code == 200:
-        model_data = dict(resp.json())
-        
-        model_data = _reformat_2dlist(model_data)
-        pprint(model_data)
-
-        model_data = _add_tags(model_data, DT_QUERY_STR)
-        
-        print('Uploading to firestore')
-        ret = collection.document(f'{FIRESTORE_DOCUMENT_PREFIX}{DT_QUERY_STR}').set(model_data)
-        print('Firestore return:', ret)
 
 
 if __name__ == '__main__':
+    FS_CLIENT = firestore.Client()
+    FS_COL = FS_CLIENT.collection(getenv("FS_COLLECTION"))
     main('data', 'context')

@@ -14,6 +14,8 @@ BQ_TABLE_GLOBAL = getenv("BQ_TABLE_GLOBAL")
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
 
+# Table sources as they appear in route arguments
+# (the keys) and their mapping to BigQuery table names
 SRC_MAP = {
     "SLC":    BQ_TABLE_SLC,
     "CHATT":  BQ_TABLE_CHATT,
