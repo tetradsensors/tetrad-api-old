@@ -67,25 +67,29 @@ def processRegion(region):
         region['lon_hi'],
         date_str
     )
+
+    logging.warning(URL)
     
     resp = requests.get(URL)
     if resp.status_code == 200:
-        model_data = dict(resp.json())
+        d = dict(resp.json())
         
-        model_data = _reformat_2dlist(model_data)
-        model_data = _add_tags(model_data, region, date_obj)
-        ret = FS_COL.document(f'{region["qsrc"]}_{date_str}').set(model_data)
+        d = _reformat_2dlist(d)
+        d = _add_tags(d, region, date_obj)
+        logging.warning(d)
+        ret = FS_COL.document(f'{region["qsrc"]}_{date_str}').set(d)
 
         return ret 
 
     else:
+        logging.warning("No data. resp: " + str(resp.status_code))
         return None 
 
 
 def removeOldDocuments():
     age = MAX_AGE
     date_threshold = datetime.datetime.utcnow() - datetime.timedelta(days=age)
-    print(date_threshold)
+    logging.warning('date threshold: ' + str(date_threshold))
     docs = FS_COL.where('date', '<=', date_threshold).stream()
     for doc in docs:
         FS_COL.document(doc.id).delete()
@@ -99,14 +103,16 @@ def main(data, context):
         context (google.cloud.functions.Context): Metadata for the event.
     """
 
+    logging.warning("entered function")
     model_data = getModelBoxes()
-    
+    logging.warning(model_data)
     for region in model_data:
+        logging.warning(region['name'])
         processRegion(region)
 
     removeOldDocuments()
 
 
 
-if __name__ == '__main__':
-    main('data', 'context')
+# if __name__ == '__main__':
+#     main('data', 'context')

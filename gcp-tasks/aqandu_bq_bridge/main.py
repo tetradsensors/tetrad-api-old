@@ -20,7 +20,6 @@ def main(data, context):
     bq_client = bigquery.Client()
     table = bq_client.dataset(getenv("BQ_DATASET")).table(getenv("BQ_TABLE"))
 
-
     data = resp.json()
     data_f = []
     for d in data:
