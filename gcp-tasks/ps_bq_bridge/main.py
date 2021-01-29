@@ -55,12 +55,20 @@ def inPoly(p, poly):
 
 def pointToTableName(p):
     if not sum(p):
-        return getenv('BIGQUERY_TABLE_BADGPS')
-    polys = json.load(open(getenv('BOUNDING_POLYS_FILENAME')))
-    for table_name, poly in polys.items():
+        return getenv('BQ_TABLE_BADGPS')
+    boxes = getModelBoxes()
+    for box in boxes:
+        poly = [ 
+            (box['lat_hi'], box['lon_hi']), 
+            (box['lat_lo'], box['lon_hi']), 
+            (box['lat_lo'], box['lon_lo']), 
+            (box['lat_hi'], box['lon_lo']) 
+        ]
         if inPoly(p, poly):
-            return table_name
-    return getenv('BIGQUERY_TABLE_GLOBAL')
+            logging.info(f"Adding point {p} for bounding box {poly} to table {box['table']}")
+            return box['table']
+    logging.info(f"Adding point {p} to table {getenv('BQ_TABLE_GLOBAL')}")
+    return getenv('BQ_TABLE_GLOBAL')
 
 
 def addToFirestore(mac, table):
@@ -77,14 +85,14 @@ def ps_bq_bridge(event, context):
         try:
             _insert_into_bigquery(event, context)
         except Exception:
-            _handle_error(event['deviceId'])
+            _handle_error(event)
 
 
 def _insert_into_bigquery(event, context):
     data = base64.b64decode(event['data']).decode('utf-8')
     
     deviceId = event['attributes']['deviceId'][1:].upper()
-    
+
     row = json.loads(data)
      
     row[getenv("FIELD_ID")] = deviceId
@@ -110,7 +118,7 @@ def _insert_into_bigquery(event, context):
         row[getenv("FIELD_LON")] = None
 
     # Add the entry to the appropriate BigQuery Table
-    table = bq.dataset(getenv('BIGQUERY_DATASET')).table(table_name)
+    table = bq.dataset(getenv('BQ_DATASET_TELEMETRY')).table(table_name)
     errors = bq.insert_rows_json(table,
                                  json_rows=[row],)
                                 #  retry=retry.Retry(deadline=30))
@@ -127,8 +135,8 @@ def _handle_success(deviceID):
 
 
 def _handle_error(event):
-    if event['deviceId']:
-        message = 'Error streaming from device \'%s\'. Cause: %s' % (deviceID, traceback.format_exc())
+    if 'deviceId' in event['attributes']:
+        message = 'Error streaming from device \'%s\'. Cause: %s' % (event['attributes']['deviceId'], traceback.format_exc())
     else:
         message = 'Error in event: %s' % event
     logging.error(message)
