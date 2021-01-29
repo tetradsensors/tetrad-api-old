@@ -9,8 +9,7 @@ from os import getenv
 import logging
 import traceback
 from datetime import datetime
-from google.cloud import bigquery
-from google.cloud import firestore 
+from google.cloud import firestore, storage, bigquery 
 from google.api_core import retry
 import pytz
 
@@ -26,6 +25,13 @@ METRIC_ERROR_MAP = {
     getenv("FIELD_RED"):    10000,
     getenv("FIELD_NOX"):    10000,
 }
+
+def getModelBoxes():
+    gs_client = storage.Client()
+    bucket = gs_client.get_bucket(getenv("GS_BUCKET"))
+    blob = bucket.get_blob(getenv("GS_MODEL_BOXES"))
+    model_data = json.loads(blob.download_as_string())
+    return model_data
 
 # http://www.eecs.umich.edu/courses/eecs380/HANDOUTS/PROJ2/InsidePoly.html
 def inPoly(p, poly):
@@ -106,8 +112,8 @@ def _insert_into_bigquery(event, context):
     # Add the entry to the appropriate BigQuery Table
     table = bq.dataset(getenv('BIGQUERY_DATASET')).table(table_name)
     errors = bq.insert_rows_json(table,
-                                 json_rows=[row],
-                                 retry=retry.Retry(deadline=30))
+                                 json_rows=[row],)
+                                #  retry=retry.Retry(deadline=30))
     if errors != []:
         raise BigQueryError(errors)
 
@@ -120,8 +126,11 @@ def _handle_success(deviceID):
     logging.info(message)
 
 
-def _handle_error(deviceID):
-    message = 'Error streaming from device \'%s\'. Cause: %s' % (deviceID, traceback.format_exc())
+def _handle_error(event):
+    if event['deviceId']:
+        message = 'Error streaming from device \'%s\'. Cause: %s' % (deviceID, traceback.format_exc())
+    else:
+        message = 'Error in event: %s' % event
     logging.error(message)
 
 
