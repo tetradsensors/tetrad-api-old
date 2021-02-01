@@ -3,29 +3,26 @@ import math
 import numpy as np
 from scipy.io import savemat
 from scipy.ndimage.measurements import label
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-from mpl_toolkits.mplot3d.axes3d import Axes3D
-from mpl_toolkits.mplot3d import proj3d
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
 from glob import glob
 import json 
+
 
 def find_nearest(array, value):
     array = np.asarray(array)
     return (np.abs(array - value)).argmin()
 
 
+# https://stackoverflow.com/questions/357415/how-to-read-nasa-hgt-binary-files
 def hgt2Mat(hgt_filename):
+
     siz = os.path.getsize(hgt_filename)
     dim = int(math.sqrt(siz / 2))
     assert dim * dim * 2 == siz, "Invalid file size"
     return np.fromfile(hgt_filename, np.dtype('>i2'), dim * dim).reshape((dim, dim))
 
 
+# https://e4ftl01.cr.usgs.gov/MEASURES/SRTMGL1.003/
 def tileHGT(hgt_list):
     SZ = 3600
     lat_lo, lon_lo =  1000,  1000

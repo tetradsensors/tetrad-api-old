@@ -38,7 +38,8 @@ def handle_nodata_error(error):
 
 
 bq_client = Client(project=PROJECT_ID)
-elevation_interpolator = utils.setupElevationInterpolator()
+elevInterps = utils.setupElevationInterpolator()
+
 
 # https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
@@ -293,10 +294,11 @@ def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None):
 # @limiter.limit('1/minute')
 def getEstimateMap():
     """
-    lat_hi
-    lat_lo
-    lon_hi
-    lon_lo
+    src
+    # lat_hi
+    # lat_lo
+    # lon_hi
+    # lon_lo
     lat_size
     lon_size
     date
@@ -314,10 +316,11 @@ def getEstimateMap():
     # Get the arguments from the query string
     if not UTM:
         try:
-            lat_hi = utils.argParseLat(request.args.get('lat_hi', type=float))
-            lat_lo = utils.argParseLat(request.args.get('lat_lo', type=float))
-            lon_hi = utils.argParseLon(request.args.get('lon_hi', type=float))
-            lon_lo = utils.argParseLon(request.args.get('lon_lo', type=float))
+            src = utils.argParseSources(request.args.get('src'), single_source=True)
+        #     lat_hi = utils.argParseLat(request.args.get('lat_hi', type=float))
+        #     lat_lo = utils.argParseLat(request.args.get('lat_lo', type=float))
+        #     lon_hi = utils.argParseLon(request.args.get('lon_hi', type=float))
+        #     lon_lo = utils.argParseLon(request.args.get('lon_lo', type=float))
             query_datetime = utils.argParseDatetime(request.args.get('date', type=str))
         except ArgumentError:
             raise
@@ -331,6 +334,20 @@ def getEstimateMap():
     # STEP 0: Load up the bounding box from file and check 
     #         that request is within it
     ##################################################################
+
+    region = None
+    for r in MODEL_BOXES:
+        if r['qsrc'] == src:
+            region = r
+            break
+    
+    if not region:
+        raise ArgumentError('src bad', 400)
+    
+    lat_lo = region['lat_lo']
+    lat_hi = region['lat_hi']
+    lon_lo = region['lon_lo']
+    lon_hi = region['lon_hi']
 
     # bounding_box_vertices = utils.loadBoundingBox()
     # print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
@@ -413,7 +430,7 @@ def getEstimateMap():
     
     for datum in sensor_data:
         if ('Elevation' not in datum) or (datum['Elevation'] is None):
-            datum['Elevation'] = elevation_interpolator([datum['Longitude']],[datum['Latitude']])[0]
+            datum['Elevation'] = elevInterps[src]([datum['Longitude']],[datum['Latitude']])[0]
 
     ##################################################################
     # STEP 5: Create Model
@@ -431,7 +448,7 @@ def getEstimateMap():
     else:
         return ArgumentError('UTM not yet supported', 400)
 
-    elevations = elevation_interpolator(lon_vector, lat_vector)
+    elevations = elevInterps[src](lon_vector, lat_vector)
     locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
 
     locations_lat = locations_lat.flatten()

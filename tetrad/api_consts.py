@@ -35,6 +35,13 @@ ALLGPS_TBLS = {
     "GLOBAL": BQ_TABLE_GLOBAL,
 }
 
+ELEV_MAPS = {
+    "SLC":   getenv("ELEV_MAP_SLC_FILENAME"),
+    "CHATT": getenv("ELEV_MAP_CHATT_FILENAME"),
+    "CLEV":  getenv("ELEV_MAP_CLEV_FILENAME"),
+    "KC":    getenv("ELEV_MAP_KC_FILENAME"),
+}
+
 # Field names as they appear in route arguments
 #   and their mapping to BigQuery field names
 FIELD_MAP = {

@@ -10,12 +10,22 @@ import math
 from flask import jsonify
 import numpy as np
 import re
+from google.cloud import storage
+import json
 from tetrad.classes import ArgumentError
 from tetrad.api_consts import *
 
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
+MODEL_BOXES = getModelBoxes()
+
+def getModelBoxes():
+    gs_client = storage.Client()
+    bucket = gs_client.get_bucket(getenv("GS_BUCKET"))
+    blob = bucket.get_blob(getenv("GS_MODEL_BOXES"))
+    model_data = json.loads(blob.download_as_string())
+    return model_data
 
 
 def parseDatetimeString(datetime_string:str):
@@ -34,11 +44,14 @@ def datetimeToBigQueryTimestamp(date):
 
 # # Load up elevation grid
 def setupElevationInterpolator():
-    data = loadmat(getenv("ELEVATION_MAP_FILENAME"))
-    elevation_grid = data['elevs']
-    gridLongs = data['gridLongs']
-    gridLats = data['gridLats']
-    return interpolate.interp2d(gridLongs, gridLats, elevation_grid, kind='cubic')
+    elevInterps = {}
+    for k, v in ELEV_MAPS:
+        data = loadmat(v)
+        elevs_grid = data['elevs']
+        lats_arr = data['lats']
+        lons_arr = data['lons']
+        elevInterps[k] = interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
+    return elevInterps
 
 
 def loadBoundingBox():
@@ -351,6 +364,7 @@ def bboxDataToRadiusData(data, radius, center):
             inRad.append(datum)
     return inRad
 
+
 def idsToWHEREClause(ids, id_field_name):
     """
     Return string that looks like:
@@ -454,12 +468,16 @@ def argParseLon(lon):
     return lon
 
 
-def argParseSources(srcs):
+def argParseSources(srcs, single_source=False):
     '''
     Parse a 'src' argument from request.args.get('src')
     into a list of sources
     '''
     if ',' in srcs:
+        
+        if single_source:
+            raise ArgumentError(f"Argument 'src' must be one included from: {', '.join(SRC_MAP)}", 400)
+
         srcs = [s.upper() for s in srcs.split(',')]
     else:
         srcs = [srcs.upper()]
@@ -475,7 +493,11 @@ def argParseSources(srcs):
     # Check src[s] for validity
     if not verifySources(srcs):
         raise ArgumentError(f"Argument 'src' must be included from one or more of {', '.join(SRC_MAP)}", 400)
-    return srcs
+    
+    if single_source:
+        return srcs[0]
+    else:
+        return srcs
 
 
 def argParseFields(fields):

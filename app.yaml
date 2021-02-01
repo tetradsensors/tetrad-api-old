@@ -40,6 +40,8 @@ handlers:
   upload: static/img/favicon\.ico 
 
 env_variables:
+  GS_BUCKET: "tetrad_server_files"
+  GS_MODEL_BOXES: "model_boxes.json"
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
   BQ_DATASET_TELEMETRY: "telemetry"
@@ -70,6 +72,10 @@ env_variables:
   BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
   CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"
+  ELEV_MAP_SLC_FILENAME: "model_files/slc.mat"
+  ELEV_MAP_CHATT_FILENAME: "model_files/chatt.mat"
+  ELEV_MAP_CLEV_FILENAME: "model_files/clev.mat"
+  ELEV_MAP_KC_FILENAME: "model_files/kc.mat"
   LENGTH_SCALES_FILENAME: "model_files/length_scales.csv"
   FB_CONFIG_SECRET: "firebase_config"
   FB_ADMIN_CONFIG_SECRET: "firebase_admin_config"
