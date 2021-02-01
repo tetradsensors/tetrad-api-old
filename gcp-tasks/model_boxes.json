@@ -21,7 +21,6 @@
         "name": "Cleveland, Ohio",
         "table": "clev_oh",
         "qsrc": "CLEV",
-         
         "lat_hi": 41.79579575367248,
         "lat_lo": 40.83277930855361, 
         "lon_hi": -81.23046857557351,

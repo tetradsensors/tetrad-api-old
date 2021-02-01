@@ -25,14 +25,14 @@ import logging
 def handle_arg_error(error):
     error = error.to_dict()
     error['message'] += ' For more information, please visit: https://github.com/tetradsensors/tetrad_site'
-    response = jsonify(error.to_dict())
+    response = jsonify(dict(error))
     response.status_code = error.status_code 
     return response
 
 
 @app.errorhandler(NoDataError)
 def handle_nodata_error(error):
-    response = jsonify(error.to_dict())
+    response = jsonify(dict(error))
     response.status_code = error.status_code 
     return response
 
@@ -248,6 +248,8 @@ def _requestData(srcs, fields, start, end, bbox=None, id_ls=None):
             {FIELD_MAP["TIMESTAMP"]};        
     """
 
+    logging.error(q)
+
     # Run the query and collect the result
     query_job = bq_client.query(q)
     rows = query_job.result()
@@ -300,6 +302,9 @@ def getEstimateMap():
     date
     
     """
+    print("getEstimateMap")
+    logging.error("logging: getEstimateMap")
+    
     # this species grid positions should be interpolated in UTM coordinates
     if "UTM" in request.args:
         UTM = True
@@ -327,15 +332,15 @@ def getEstimateMap():
     #         that request is within it
     ##################################################################
 
-    bounding_box_vertices = utils.loadBoundingBox()
-    print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
+    # bounding_box_vertices = utils.loadBoundingBox()
+    # print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
 
-    if not (
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_lo) and
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_hi) and
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_hi) and
-        utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_lo)):
-        raise ArgumentError('One of the query locations is outside of the bounding box for the database', 400)
+    # if not (
+    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_lo) and
+    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_hi) and
+    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_hi) and
+    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_lo)):
+    #     raise ArgumentError('One of the query locations is outside of the bounding box for the database', 400)
 
     ##################################################################
     # STEP 1: Load up length scales from file
@@ -353,6 +358,9 @@ def getEstimateMap():
     latlon_length_scale = length_scales[0]['latlon']
     elevation_length_scale = length_scales[0]['elevation']
     time_length_scale = length_scales[0]['time']
+
+    print(length_scales)
+    print(time_length_scale)
 
     ##################################################################
     # STEP 2: Query relevant data
@@ -404,7 +412,7 @@ def getEstimateMap():
     ##################################################################
     
     for datum in sensor_data:
-        if 'Elevation' not in datum:
+        if ('Elevation' not in datum) or (datum['Elevation'] is None):
             datum['Elevation'] = elevation_interpolator([datum['Longitude']],[datum['Latitude']])[0]
 
     ##################################################################

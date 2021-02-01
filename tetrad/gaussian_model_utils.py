@@ -277,6 +277,8 @@ def setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_lo
     #         print(loc[TIME_MAP_INDEX])
 
 #    print(time_coordinates.shape)
+    print("data_matrix1:")
+    print(data_matrix)
     for key in device_location_map.keys():
         device = device_location_map[key]
         space_index = device[SPACE_COORD_INDEX]
@@ -293,7 +295,6 @@ def setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_lo
 #        for i in range(time_coordinates.shape[0]):
 #            data_matrix[space_index,i] = time_data_array[i,0]
         data_matrix[space_index,:] = time_data_array
-
 #    saveMatrixToFile(data_matrix, '1matrix.txt')
 #    numpy.savetxt('1matrix.csv', data_matrix, delimiter=',')
     interpolateBadElements(data_matrix, -1)
@@ -367,10 +368,19 @@ def createModel(sensor_data, latlon_length_scale, elevation_length_scale, time_l
 # this builds up the first instance of the device_location_map
 # sucessive calls will process and fill in the time data
     space_coordinates, device_location_map = createSpaceVector2(sensor_data, time_coordinates.shape[0])
+    print("space_coordinates A:")
+    print(space_coordinates)
+    print("device_location_map:")
+    print(device_location_map)
     assignTimeData(sensor_data, device_location_map, time_offset, time_lo_bound, time_hi_bound)
     computeTimeArrays(sensor_data, device_location_map, time_coordinates)
 #    data_matrix, space_coordinates, time_coordinates = setupDataMatrix(sensor_data, space_coordinates, time_coordinates, device_location_map)
     data_matrix, space_coordinates, time_coordinates = setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_location_map)
+
+    print("space_coordinates:")
+    print(space_coordinates)
+    print("time_coordinates:")
+    print(time_coordinates)
 
     space_coordinates = torch.tensor(space_coordinates)     # convert data to pytorch tensor
     time_coordinates = torch.tensor(time_coordinates)   # convert data to pytorch tensor
