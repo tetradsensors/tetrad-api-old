@@ -17,29 +17,29 @@ TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
 # Table sources as they appear in route arguments
 # (the keys) and their mapping to BigQuery table names
 SRC_MAP = {
-    "SLC":    BQ_TABLE_SLC,
-    "CHATT":  BQ_TABLE_CHATT,
-    "CLEV":   BQ_TABLE_CLEV,
-    "KC":     BQ_TABLE_KC,
-    "BADGPS": BQ_TABLE_BADGPS,
-    "GLOBAL": BQ_TABLE_GLOBAL,
-    "ALL":    None,
-    "ALLGPS": None,
+    getenv("Q_SLC"):    BQ_TABLE_SLC,
+    getenv("Q_CHATT"):  BQ_TABLE_CHATT,
+    getenv("Q_CLEV"):   BQ_TABLE_CLEV,
+    getenv("Q_KC"):     BQ_TABLE_KC,
+    getenv("Q_BADGPS"): BQ_TABLE_BADGPS,
+    getenv("Q_GLOBAL"): BQ_TABLE_GLOBAL,
+    getenv("Q_ALL"):    None,
+    getenv("Q_ALLGPS"): None,
 }
 
 ALLGPS_TBLS = {
-    "SLC":    BQ_TABLE_SLC,
-    "CHATT":  BQ_TABLE_CHATT,
-    "CLEV":   BQ_TABLE_CLEV,
-    "KC":     BQ_TABLE_KC,
-    "GLOBAL": BQ_TABLE_GLOBAL,
+    getenv("Q_SLC"):    BQ_TABLE_SLC,
+    getenv("Q_CHATT"):  BQ_TABLE_CHATT,
+    getenv("Q_CLEV"):   BQ_TABLE_CLEV,
+    getenv("Q_KC"):     BQ_TABLE_KC,
+    getenv("Q_GLOBAL"): BQ_TABLE_GLOBAL,
 }
 
 ELEV_MAPS = {
-    "SLC":   getenv("ELEV_MAP_SLC_FILENAME"),
-    "CHATT": getenv("ELEV_MAP_CHATT_FILENAME"),
-    "CLEV":  getenv("ELEV_MAP_CLEV_FILENAME"),
-    "KC":    getenv("ELEV_MAP_KC_FILENAME"),
+    getenv("Q_SLC"):   getenv("ELEV_MAP_SLC_FILENAME"),
+    getenv("Q_CHATT"): getenv("ELEV_MAP_CHATT_FILENAME"),
+    getenv("Q_CLEV"):  getenv("ELEV_MAP_CLEV_FILENAME"),
+    getenv("Q_KC"):    getenv("ELEV_MAP_KC_FILENAME"),
 }
 
 # Field names as they appear in route arguments

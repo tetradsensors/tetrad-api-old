@@ -18,7 +18,6 @@ from tetrad.api_consts import *
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
-MODEL_BOXES = getModelBoxes()
 
 def getModelBoxes():
     gs_client = storage.Client()
@@ -26,6 +25,7 @@ def getModelBoxes():
     blob = bucket.get_blob(getenv("GS_MODEL_BOXES"))
     model_data = json.loads(blob.download_as_string())
     return model_data
+MODEL_BOXES = getModelBoxes()
 
 
 def parseDatetimeString(datetime_string:str):
@@ -45,11 +45,13 @@ def datetimeToBigQueryTimestamp(date):
 # # Load up elevation grid
 def setupElevationInterpolator():
     elevInterps = {}
-    for k, v in ELEV_MAPS:
+    for k, v in ELEV_MAPS.items():
+        print(k)
         data = loadmat(v)
         elevs_grid = data['elevs']
         lats_arr = data['lats']
         lons_arr = data['lons']
+        print(lats_arr.shape, lons_arr.shape, elevs_grid.shape)
         elevInterps[k] = interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
     return elevInterps
 

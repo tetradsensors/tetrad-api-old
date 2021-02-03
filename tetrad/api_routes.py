@@ -6,11 +6,11 @@ from google.cloud.bigquery import Client, QueryJobConfig, ScalarQueryParameter
 from tetrad import app, cache, admin_utils, limiter, utils
 from tetrad.api_consts import *
 from tetrad.classes import ArgumentError, NoDataError
-from tetrad import gaussian_model_utils
+# from tetrad import gaussian_model_utils
 import json
 import numpy as np 
 from os import getenv
-import pandas as pd 
+# import pandas as pd 
 import re 
 import requests
 from time import time 
@@ -23,22 +23,24 @@ import logging
 
 @app.errorhandler(ArgumentError)
 def handle_arg_error(error):
-    error = error.to_dict()
-    error['message'] += ' For more information, please visit: https://github.com/tetradsensors/tetrad_site'
-    response = jsonify(dict(error))
-    response.status_code = error.status_code 
+    d = error.to_dict()
+    d['message'] += ' For more information, please visit: https://github.com/tetradsensors/tetrad_site'
+    response = jsonify(d)
+    response.status_code = error.status_code
     return response
 
 
 @app.errorhandler(NoDataError)
 def handle_nodata_error(error):
-    response = jsonify(dict(error))
-    response.status_code = error.status_code 
+    d = error.to_dict()
+    d['message'] += ' For more information, please visit: https://github.com/tetradsensors/tetrad_site'
+    response = jsonify(d)
+    response.status_code = error.status_code
     return response
 
 
 bq_client = Client(project=PROJECT_ID)
-elevInterps = utils.setupElevationInterpolator()
+# elevInterps = utils.setupElevationInterpolator()
 
 
 # https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
@@ -288,188 +290,190 @@ def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None):
     return data
 
 
-#http://localhost:8080/api/getEstimateMap?lat_lo=40.644519&lon_lo=-111.971465&lat_hi=40.806852&lon_hi=-111.811118&lat_size=3&lon_size=3&date=2020-10-10T00:00:00Z
-@app.route("/getEstimateMap", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
-# @admin_utils.ingroup('admin')
-# @limiter.limit('1/minute')
-def getEstimateMap():
-    """
-    src
-    # lat_hi
-    # lat_lo
-    # lon_hi
-    # lon_lo
-    lat_size
-    lon_size
-    date
+# @app.route("/getEstimateMap", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# # @admin_utils.ingroup('admin')
+# # @limiter.limit('1/minute')
+# def getEstimateMap():
+#     """
+#     src
+#     # lat_hi
+#     # lat_lo
+#     # lon_hi
+#     # lon_lo
+#     lat_size
+#     lon_size
+#     date
     
-    """
-    print("getEstimateMap")
-    logging.error("logging: getEstimateMap")
+#     """
+#     print("getEstimateMap")
+#     logging.error("logging: getEstimateMap")
     
-    # this species grid positions should be interpolated in UTM coordinates
-    if "UTM" in request.args:
-        UTM = True
-    else:
-        UTM = False
+#     # this species grid positions should be interpolated in UTM coordinates
+#     if "UTM" in request.args:
+#         UTM = True
+#     else:
+#         UTM = False
 
-    # Get the arguments from the query string
-    if not UTM:
-        try:
-            src = utils.argParseSources(request.args.get('src'), single_source=True)
-        #     lat_hi = utils.argParseLat(request.args.get('lat_hi', type=float))
-        #     lat_lo = utils.argParseLat(request.args.get('lat_lo', type=float))
-        #     lon_hi = utils.argParseLon(request.args.get('lon_hi', type=float))
-        #     lon_lo = utils.argParseLon(request.args.get('lon_lo', type=float))
-            query_datetime = utils.argParseDatetime(request.args.get('date', type=str))
-        except ArgumentError:
-            raise
-        try:
-            lat_size = int(request.args.get('lat_size'))
-            lon_size = int(request.args.get('lon_size'))
-        except ValueError:
-            raise ArgumentError('lat, lon, sizes must be ints (not UTM) case', 400)
+#     # Get the arguments from the query string
+#     if not UTM:
+#         try:
+#             src = utils.argParseSources(request.args.get('src'), single_source=True)
+#         #     lat_hi = utils.argParseLat(request.args.get('lat_hi', type=float))
+#         #     lat_lo = utils.argParseLat(request.args.get('lat_lo', type=float))
+#         #     lon_hi = utils.argParseLon(request.args.get('lon_hi', type=float))
+#         #     lon_lo = utils.argParseLon(request.args.get('lon_lo', type=float))
+#             query_datetime = utils.argParseDatetime(request.args.get('date', type=str))
+#         except ArgumentError:
+#             raise
+#         try:
+#             lat_size = int(request.args.get('lat_size'))
+#             lon_size = int(request.args.get('lon_size'))
+#         except ValueError:
+#             raise ArgumentError('lat, lon, sizes must be ints (not UTM) case', 400)
 
-    ##################################################################
-    # STEP 0: Load up the bounding box from file and check 
-    #         that request is within it
-    ##################################################################
+#     ##################################################################
+#     # STEP 0: Load up the bounding box from file and check 
+#     #         that request is within it
+#     ##################################################################
 
-    region = None
-    for r in MODEL_BOXES:
-        if r['qsrc'] == src:
-            region = r
-            break
+#     region = None
+#     for r in MODEL_BOXES:
+#         if r['qsrc'] == src:
+#             region = r
+#             break
     
-    if not region:
-        raise ArgumentError('src bad', 400)
+#     if not region:
+#         raise ArgumentError('src bad', 400)
     
-    lat_lo = region['lat_lo']
-    lat_hi = region['lat_hi']
-    lon_lo = region['lon_lo']
-    lon_hi = region['lon_hi']
+#     lat_lo = region['lat_lo']
+#     lat_hi = region['lat_hi']
+#     lon_lo = region['lon_lo']
+#     lon_hi = region['lon_hi']
 
-    # bounding_box_vertices = utils.loadBoundingBox()
-    # print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
+#     print(lat_lo, lat_hi, lon_lo, lon_hi)
 
-    # if not (
-    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_lo) and
-    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_hi) and
-    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_hi) and
-    #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_lo)):
-    #     raise ArgumentError('One of the query locations is outside of the bounding box for the database', 400)
+#     # bounding_box_vertices = utils.loadBoundingBox()
+#     # print(f'Loaded {len(bounding_box_vertices)} bounding box vertices.')
 
-    ##################################################################
-    # STEP 1: Load up length scales from file
-    ##################################################################
+#     # if not (
+#     #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_lo) and
+#     #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_lo, lon_hi) and
+#     #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_hi) and
+#     #     utils.isQueryInBoundingBox(bounding_box_vertices, lat_hi, lon_lo)):
+#     #     raise ArgumentError('One of the query locations is outside of the bounding box for the database', 400)
 
-    length_scales = utils.loadLengthScales()
-    length_scales = utils.getScalesInTimeRange(length_scales, query_datetime, query_datetime)
-    if len(length_scales) < 1:
-        msg = (
-            f"Incorrect number of length scales({len(length_scales)}) "
-            f"found in between {query_datetime}-1day and {query_datetime}+1day"
-        )
-        raise ArgumentError(msg, 400)
+#     ##################################################################
+#     # STEP 1: Load up length scales from file
+#     ##################################################################
 
-    latlon_length_scale = length_scales[0]['latlon']
-    elevation_length_scale = length_scales[0]['elevation']
-    time_length_scale = length_scales[0]['time']
+#     length_scales = utils.loadLengthScales()
+#     length_scales = utils.getScalesInTimeRange(length_scales, query_datetime, query_datetime)
+#     if len(length_scales) < 1:
+#         msg = (
+#             f"Incorrect number of length scales({len(length_scales)}) "
+#             f"found in between {query_datetime}-1day and {query_datetime}+1day"
+#         )
+#         raise ArgumentError(msg, 400)
 
-    print(length_scales)
-    print(time_length_scale)
+#     latlon_length_scale = length_scales[0]['latlon']
+#     elevation_length_scale = length_scales[0]['elevation']
+#     time_length_scale = length_scales[0]['time']
 
-    ##################################################################
-    # STEP 2: Query relevant data
-    ##################################################################
 
-    # Compute a circle center at the query volume.  Radius is related to lenth scale + the size of the box.
-    lat = (lat_lo + lat_hi) / 2.0
-    lon = (lon_lo + lon_hi) / 2.0
+#     ##################################################################
+#     # STEP 2: Query relevant data
+#     ##################################################################
 
-    UTM_N_hi, UTM_E_hi, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
-    UTM_N_lo, UTM_E_lo, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
+#     # Compute a circle center at the query volume.  Radius is related to lenth scale + the size of the box.
+#     lat = (lat_lo + lat_hi) / 2.0
+#     lon = (lon_lo + lon_hi) / 2.0
+
+#     UTM_N_hi, UTM_E_hi, zone_num_hi, zone_let_hi = utils.latlonToUTM(lat_hi, lon_hi)
+#     UTM_N_lo, UTM_E_lo, zone_num_lo, zone_let_lo = utils.latlonToUTM(lat_lo, lon_lo)
     
-    # compute the length of the diagonal of the lat-lon box.  This units here are **meters**
-    lat_diff = UTM_N_hi - UTM_N_lo
-    lon_diff = UTM_E_hi - UTM_E_lo
+#     # compute the length of the diagonal of the lat-lon box.  This units here are **meters**
+#     lat_diff = UTM_N_hi - UTM_N_lo
+#     lon_diff = UTM_E_hi - UTM_E_lo
 
-    radius = SPACE_KERNEL_FACTOR_PADDING * latlon_length_scale + np.sqrt(lat_diff**2 + lon_diff**2) / 2.0
+#     radius = SPACE_KERNEL_FACTOR_PADDING * latlon_length_scale + np.sqrt(lat_diff**2 + lon_diff**2) / 2.0
 
-    if not ((zone_num_lo == zone_num_hi) and (zone_let_lo == zone_let_hi)):
-        raise ArgumentError('Requested region spans UTM zones', 400)
+#     if not ((zone_num_lo == zone_num_hi) and (zone_let_lo == zone_let_hi)):
+#         raise ArgumentError('Requested region spans UTM zones', 400)
     
 
-    # Convert dates to strings
-    start = query_datetime - TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
-    start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = query_datetime + TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
-    end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
+#     # Convert dates to strings
+#     start = query_datetime - TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
+#     start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
+#     end = query_datetime + TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
+#     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    sensor_data = _requestDataInRadius(
-        srcs=["SLC"], 
-        fields=['PM2_5', 'ELEVATION'], 
-        start=start_str, 
-        end=end_str, 
-        radius=radius, 
-        center=(lat, lon)
-    )
+#     sensor_data = _requestDataInRadius(
+#         srcs=[src], 
+#         fields=['PM2_5', 'ELEVATION'], 
+#         start=start_str, 
+#         end=end_str, 
+#         radius=radius, 
+#         center=(lat, lon)
+#     )
 
-    ##################################################################
-    # STEP 3: Convert lat/lon to UTM coordinates
-    ##################################################################
+#     print(src)
+#     print(sensor_data)
+
+#     ##################################################################
+#     # STEP 3: Convert lat/lon to UTM coordinates
+#     ##################################################################
     
-    try:
-        sensor_data = utils.convertLatLonToUTM(sensor_data)
-    except ValueError as err:
-        return f'{str(err)}', 400
+#     try:
+#         sensor_data = utils.convertLatLonToUTM(sensor_data)
+#     except ValueError as err:
+#         return f'{str(err)}', 400
 
-    ##################################################################
-    # STEP 4: Add elevation values to the data
-    ##################################################################
+#     ##################################################################
+#     # STEP 4: Add elevation values to the data
+#     ##################################################################
     
-    for datum in sensor_data:
-        if ('Elevation' not in datum) or (datum['Elevation'] is None):
-            datum['Elevation'] = elevInterps[src]([datum['Longitude']],[datum['Latitude']])[0]
+#     for datum in sensor_data:
+#         if ('Elevation' not in datum) or (datum['Elevation'] is None):
+#             datum['Elevation'] = elevInterps[src]([datum['Longitude']],[datum['Latitude']])[0]
 
-    ##################################################################
-    # STEP 5: Create Model
-    ##################################################################
+#     ##################################################################
+#     # STEP 5: Create Model
+#     ##################################################################
     
-    model, time_offset = gaussian_model_utils.createModel(
-        sensor_data, latlon_length_scale, elevation_length_scale, time_length_scale)
+#     model, time_offset = gaussian_model_utils.createModel(
+#         sensor_data, latlon_length_scale, elevation_length_scale, time_length_scale)
 
-    ##################################################################
-    # STEP 6: Build the grid of query locations
-    ##################################################################
+#     ##################################################################
+#     # STEP 6: Build the grid of query locations
+#     ##################################################################
     
-    if not UTM:
-        lon_vector, lat_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size)
-    else:
-        return ArgumentError('UTM not yet supported', 400)
+#     if not UTM:
+#         lon_vector, lat_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size)
+#     else:
+#         return ArgumentError('UTM not yet supported', 400)
 
-    elevations = elevInterps[src](lon_vector, lat_vector)
-    locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
+#     elevations = elevInterps[src](lon_vector, lat_vector)
+#     locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
 
-    locations_lat = locations_lat.flatten()
-    locations_lon = locations_lon.flatten()
-    elevations = elevations.flatten()
+#     locations_lat = locations_lat.flatten()
+#     locations_lon = locations_lon.flatten()
+#     elevations = elevations.flatten()
 
-    yPred, yVar = gaussian_model_utils.estimateUsingModel(
-        model, locations_lat, locations_lon, elevations, [query_datetime], time_offset)
+#     yPred, yVar = gaussian_model_utils.estimateUsingModel(
+#         model, locations_lat, locations_lon, elevations, [query_datetime], time_offset)
 
-    elevations = (elevations.reshape((lat_size, lon_size))).tolist()
-    yPred = yPred.reshape((lat_size, lon_size))
-    yVar = yVar.reshape((lat_size, lon_size))
-    estimates = yPred.tolist()
-    variances = yVar.tolist()
+#     elevations = (elevations.reshape((lat_size, lon_size))).tolist()
+#     yPred = yPred.reshape((lat_size, lon_size))
+#     yVar = yVar.reshape((lat_size, lon_size))
+#     estimates = yPred.tolist()
+#     variances = yVar.tolist()
 
-    response = jsonify({
-                "Elevations": elevations, 
-                "PM2.5": estimates, 
-                "PM2.5 variance": variances, 
-                "Latitudes": lat_vector.tolist(), 
-                "Longitudes": lon_vector.tolist()
-               })  
-    response.status_code = 200
-    return response
+#     response = jsonify({
+#                 "Elevations": elevations, 
+#                 "PM2.5": estimates, 
+#                 "PM2.5 variance": variances, 
+#                 "Latitudes": lat_vector.tolist(), 
+#                 "Longitudes": lon_vector.tolist()
+#                })  
+#     response.status_code = 200
+#     return response

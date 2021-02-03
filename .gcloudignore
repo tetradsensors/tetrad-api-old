@@ -37,3 +37,9 @@ tox.ini
 gcp-tasks
 
 crt
+
+tools
+
+gcp-tasks
+
+BigQuery

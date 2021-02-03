@@ -65,6 +65,27 @@ env_variables:
   FIELD_NOX:  "MicsNOX"
   FIELD_HTR:  "MicsHeater"
   FIELD_FLG:  "Flags"
+  Q_SLC:      "SLC",
+  Q_CHATT:    "CHATT",
+  Q_CLEV:     "CLEV",
+  Q_KC:       "KC",
+  Q_GLOBAL:   "GLOBAL",
+  Q_BADGPS:   "BADGPS",
+  Q_ALL:      "ALL",
+  Q_ALLGPS:   "ALLGPS"
+  Q_TS:       "TIMESTAMP",
+  Q_ID:       "DEVICEID",
+  Q_LAT:      "LATITUDE",
+  Q_LAT:      "LONGITUDE",
+  Q_ELE:      "ELEVATION",
+  Q_PM1:      "PM1",
+  Q_PM2_5:    "PM2_5",
+  Q_PM10:     "PM10",
+  Q_TEMP:     "TEMPERATURE",
+  Q_HUM:      "HUMIDITY",
+  Q_RED:      "MICSRED",
+  Q_NOX:      "MICSNOX",
+  Q_HTR:      "MICSHEATER"
   PM_BAD_THRESH: 500
   PM_BAD_FLAG: -1
   TEMP_BAD_FLAG: -1000

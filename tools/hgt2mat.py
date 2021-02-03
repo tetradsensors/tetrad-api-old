@@ -85,40 +85,46 @@ def extractRegion(data_dict, lat_lo, lat_hi, lon_lo, lon_hi):
     lati1 = find_nearest(data_dict['lats'], lat_hi)
     
     # lats grow up but matrices grow down, so invert
-    lati0 = len(data_dict['lats']) - lati0  
-    lati1 = len(data_dict['lats']) - lati1
-    lati0, lati1 = lati1, lati0
+    latii1 = len(data_dict['lats']) - lati0  
+    latii0 = len(data_dict['lats']) - lati1
+    # lati0, lati1 = lati1, lati0
 
-    region = mat[lati0:lati1, loni0:loni1]
+    region = mat[latii0:latii1, loni0:loni1]
 
-    return region
+    d = {
+        "elevs": region,
+        "lats": data_dict['lats'][lati0:lati1],
+        "lons": data_dict['lons'][loni0:loni1]
+    }
+    return d
 
 
 def main():
     
+    # Change me
     DATA_DIR = 'chatt'
-    MAT_OUT = f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/tools/LPDAAC/{DATA_DIR}.mat'
+    # MAT_OUT = f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/tools/LPDAAC/{DATA_DIR}.mat'
+    MAT_OUT = f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/model_files/{DATA_DIR}.mat'
     
-    
+    # no touchey
     files = list(glob(f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/tools/LPDAAC/{DATA_DIR}/*.hgt'))
     model_boxes = json.load(open('/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/gcp-tasks/model_boxes.json'))
     for region in model_boxes:
-        if region['table'] == 'slc_ut': 
+        if region['qsrc'] == DATA_DIR.upper(): 
             break
+    
+    print('Region:')
+    print(region)
 
     data = tileHGT(files)
-    elevs = extractRegion(
+    final = extractRegion(
                 data_dict=data,
                 lat_lo=region['lat_lo'],
                 lat_hi=region['lat_hi'],
                 lon_lo=region['lon_lo'],
                 lon_hi=region['lon_hi'])
-    
-    final = {
-        "lats":  data["lats"],
-        "lons":  data["lons"],
-        "elevs": elevs
-    }
+
+    print(final['elevs'].shape, final['lats'].shape, final['lons'].shape)
 
     savemat(MAT_OUT, final)
 

@@ -135,3 +135,8 @@ openssl rsa -in ca_key.pem -out ca_key_rsa.pem
 - Subdomain `ota.tetradsensors.com`
 - All routes wrapped in `@check_creds`
   - all AirUs use the same <username:password> in `Authorization` header 
+
+### New City Checklist
+- Update `model_boxes.json` in GS
+- Update `app.yaml`
+- Update `app_consts.py`
