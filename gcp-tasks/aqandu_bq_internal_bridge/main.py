@@ -59,6 +59,7 @@ def main(data, context):
         d["Timestamp"] = str(d['Timestamp'])
         if d['MicsHeater'] is not None:
             d['MicsHeater'] = bool(d['MicsHeater'])
+        d['Flags'] = 2
         data.append(d)
 
     row_ids = list(map(_hash, data))
@@ -69,6 +70,8 @@ def main(data, context):
     )
     if errors:
         print(errors)
+    else:
+        print(f"Inserted {len(row_ids)} rows")
 
 
 if __name__ == '__main__':
