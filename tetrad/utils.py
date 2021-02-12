@@ -1,6 +1,7 @@
 from os import getenv
 from datetime import datetime, timedelta
 import dateutil
+from dateutil import parser as dateutil_parser
 from pytz import timezone
 from utm import from_latlon
 from matplotlib.path import Path
@@ -51,7 +52,13 @@ def getModelRegion(src):
 
 def parseDatetimeString(datetime_string:str):
     """Parse date string into a datetime object"""
-    return dateutil.parser.parse(datetime_string, yearfirst=True, dayfirst=False)
+    
+    datetime_obj = dateutil_parser.parse(datetime_string, yearfirst=True, dayfirst=False)
+    
+    # If user didn't specify a timezone, assume they meant UTC. Re-parse using UTC timezone.
+    if datetime_obj.tzinfo is None:
+        datetime_obj = datetime_obj.replace(tzinfo=dateutil.tz.UTC)
+    return datetime_obj
 
 
 # def datetimeToBigQueryTimestamp(date):
@@ -436,8 +443,8 @@ def idsToWHEREClause(ids, id_field_name):
 def verifyDateString(dateString:str) -> bool:
     """Check if date string is valid"""
     try:
-        return bool(dateutil.parser.parse(dateString, yearfirst=True, dayfirst=False))
-    except dateutil.parser.ParserError:
+        return bool(dateutil_parser.parse(dateString, yearfirst=True, dayfirst=False))
+    except dateutil_parser.ParserError:
         return False
 
 
@@ -588,8 +595,8 @@ def argParseDevices(devices_str:str):
 def argParseDatetime(datetime_str:str):
     try:
         return parseDatetimeString(datetime_str)
-    except dateutil.parser.ParserError:
-        raise ArgumentError(f"Invalid datetime format. Correct format is: \"{DATETIME_FORMAT}\"", status_code=400)
+    except dateutil_parser.ParserError:
+        raise ArgumentError(f'Invalid datetime format. Correct format is: "{DATETIME_FORMAT}". For URL encoded strings, a (+) must be replaced with (%2B). See https://www.w3schools.com/tags/ref_urlencode.ASP for all character encodings.', status_code=400)
 
 
 def argParseBBox(bbox:str):
