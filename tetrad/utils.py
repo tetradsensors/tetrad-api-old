@@ -28,6 +28,26 @@ def getModelBoxes():
 MODEL_BOXES = getModelBoxes()
 
 
+def getModelRegion(src):
+    """
+    MODEL_BOXES is a list of dicts stored in Google Cloud Storage.
+    Each dict in the list looks like this:
+    {
+        "name": "Salt Lake City, Utah",
+        "table": "slc_ut",
+        "qsrc": "SLC",
+        "lat_hi": 40.806852,
+        "lat_lo": 40.644519,
+        "lon_hi": -111.811118,
+        "lon_lo": -111.971465
+    }
+    """
+    for r in MODEL_BOXES:
+        if r['qsrc'] == src:
+            return r
+    return None
+            
+
 def parseDatetimeString(datetime_string:str):
     """Parse date string into a datetime object"""
     if not verifyDateString(datetime_string): 
@@ -45,6 +65,7 @@ def datetimeToBigQueryTimestamp(date):
 # # Load up elevation grid
 def setupElevationInterpolator():
     elevInterps = {}
+    print('setupElevationInterpolator')
     for k, v in ELEV_MAPS.items():
         print(k)
         data = loadmat(v)
@@ -53,7 +74,21 @@ def setupElevationInterpolator():
         lons_arr = data['lons']
         print(lats_arr.shape, lons_arr.shape, elevs_grid.shape)
         elevInterps[k] = interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
+    print('Finished loading')
     return elevInterps
+
+
+def setupElevationInterpolatorForSource(src):
+    print('setupElevationInterpolatorForSource')
+    
+    if src in ELEV_MAPS:
+        data = loadmat(ELEV_MAPS[src])
+        elevs_grid = data['elevs']
+        lats_arr = data['lats']
+        lons_arr = data['lons']
+        return interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
+    else:
+        return None
 
 
 def loadBoundingBox():
@@ -128,7 +163,7 @@ def applyCorrectionFactorsToList(data_list, pm25_key=None):
     return data_list
 
 
-def _tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None):
+def _tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None, removeNulls=False):
     """ Clean data and apply correction factors """
     # Open the file and get correction factors
     if pm25_key:
@@ -170,16 +205,37 @@ def _tuneData(data:list, pm25_key=None, temp_key=None, hum_key=None):
                     datum[hum_key] = None 
             except:
                 goodHum = False
+    
+    if removeNulls:
+
+        # If True, remove all rows with Null data
+        if isinstance(removeNulls, bool):
+            len_before = len(data)
+            data = [datum for datum in data if all(datum.values())]
+            len_after = len(data)
+            print(f"removeNulls=True. Removed {len_before - len_after} rows. [{len_before} -> {len_after}]")
         
+        # If it's a list, remove the rows missing data listed in removeNulls list        
+        elif isinstance(removeNulls, list):
+            if verifyFields(removeNulls):
+                # Make sure each of the fields specified by removeNulls is in the row. 
+                data = [datum for datum in data if all([datum[field] for field in removeNulls])]
+            else:
+                raise ArgumentError(f"(Internal error): removeNulls bad field name: {removeNulls}", 500)
+        
+        else:
+            raise ArgumentError(f"(Internal error): removeNulls must be bool or list, but was: {type(removeNulls)}", 500)
+
     return data
         
 
-def tuneData(data, fields):
+def tuneAllFields(data, fields, removeNulls=False):
     return _tuneData(
             data,
             pm25_key=(FIELD_MAP["PM2_5"] if "PM2_5" in fields else None),
             temp_key=(FIELD_MAP["TEMPERATURE"] if "TEMPERATURE" in fields else None),
-            hum_key=(FIELD_MAP["HUMIDITY"] if "HUMIDITY" in fields else None)
+            hum_key=(FIELD_MAP["HUMIDITY"] if "HUMIDITY" in fields else None),
+            removeNulls=removeNulls,
     )
 
 
@@ -475,6 +531,7 @@ def argParseSources(srcs, single_source=False):
     Parse a 'src' argument from request.args.get('src')
     into a list of sources
     '''
+
     if ',' in srcs:
         
         if single_source:

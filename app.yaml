@@ -33,7 +33,7 @@ handlers:
   secure: always
   redirect_http_response_code: 301
   script: auto
-
+ 
 - url: /favicon\.ico
   secure: always
   static_files: static/img/favicon.ico
@@ -65,31 +65,31 @@ env_variables:
   FIELD_NOX:  "MicsNOX"
   FIELD_HTR:  "MicsHeater"
   FIELD_FLG:  "Flags"
-  Q_SLC:      "SLC",
-  Q_CHATT:    "CHATT",
-  Q_CLEV:     "CLEV",
-  Q_KC:       "KC",
-  Q_GLOBAL:   "GLOBAL",
-  Q_BADGPS:   "BADGPS",
-  Q_ALL:      "ALL",
+  Q_SLC:      "SLC"
+  Q_CHATT:    "CHATT"
+  Q_CLEV:     "CLEV"
+  Q_KC:       "KC"
+  Q_GLOBAL:   "GLOBAL"
+  Q_BADGPS:   "BADGPS"
+  Q_ALL:      "ALL"
   Q_ALLGPS:   "ALLGPS"
-  Q_TS:       "TIMESTAMP",
-  Q_ID:       "DEVICEID",
-  Q_LAT:      "LATITUDE",
-  Q_LON:      "LONGITUDE",
-  Q_ELE:      "ELEVATION",
-  Q_PM1:      "PM1",
-  Q_PM2:    "PM2_5",
-  Q_PM10:     "PM10",
-  Q_TEMP:     "TEMPERATURE",
-  Q_HUM:      "HUMIDITY",
-  Q_RED:      "MICSRED",
-  Q_NOX:      "MICSNOX",
+  Q_TS:       "TIMESTAMP"
+  Q_ID:       "DEVICEID"
+  Q_LAT:      "LATITUDE"
+  Q_LON:      "LONGITUDE"
+  Q_ELE:      "ELEVATION"
+  Q_PM1:      "PM1"
+  Q_PM2:      "PM2_5"
+  Q_PM10:     "PM10"
+  Q_TEMP:     "TEMPERATURE"
+  Q_HUM:      "HUMIDITY"
+  Q_RED:      "MICSRED"
+  Q_NOX:      "MICSNOX"
   Q_HTR:      "MICSHEATER"
-  PM_BAD_THRESH: 500
-  PM_BAD_FLAG: -1
-  TEMP_BAD_FLAG: -1000
-  HUM_BAD_FLAG: -1000
+  PM_BAD_THRESH:  500
+  PM_BAD_FLAG:    -1
+  TEMP_BAD_FLAG:  -1000
+  HUM_BAD_FLAG:   -1000
   BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
   CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"

@@ -6,6 +6,16 @@ from scipy.ndimage.measurements import label
 import numpy as np
 from glob import glob
 import json 
+from google.cloud import storage
+
+
+def getModelBoxes():
+    os.environ['GOOGLE_APPLICATIONS_CREDENTIALS'] = "/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/local/tetrad.json"
+    gs_client = storage.Client()
+    bucket = gs_client.get_bucket("tetrad_server_files")
+    blob = bucket.get_blob("model_boxes.json")
+    model_data = json.loads(blob.download_as_string())
+    return model_data
 
 
 def find_nearest(array, value):
@@ -15,7 +25,6 @@ def find_nearest(array, value):
 
 # https://stackoverflow.com/questions/357415/how-to-read-nasa-hgt-binary-files
 def hgt2Mat(hgt_filename):
-
     siz = os.path.getsize(hgt_filename)
     dim = int(math.sqrt(siz / 2))
     assert dim * dim * 2 == siz, "Invalid file size"
@@ -87,7 +96,6 @@ def extractRegion(data_dict, lat_lo, lat_hi, lon_lo, lon_hi):
     # lats grow up but matrices grow down, so invert
     latii1 = len(data_dict['lats']) - lati0  
     latii0 = len(data_dict['lats']) - lati1
-    # lati0, lati1 = lati1, lati0
 
     region = mat[latii0:latii1, loni0:loni1]
 
@@ -96,19 +104,23 @@ def extractRegion(data_dict, lat_lo, lat_hi, lon_lo, lon_hi):
         "lats": data_dict['lats'][lati0:lati1],
         "lons": data_dict['lons'][loni0:loni1]
     }
+
     return d
 
 
 def main():
     
     # Change me
-    DATA_DIR = 'chatt'
+    DATA_DIR = 'clev'
     # MAT_OUT = f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/tools/LPDAAC/{DATA_DIR}.mat'
     MAT_OUT = f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/model_files/{DATA_DIR}.mat'
     
-    # no touchey
+    # 🠗 NO TOUCHEY 🠗
+
+    # grabs all .hgt files in the folder 'DATA_DIR'
     files = list(glob(f'/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/tools/LPDAAC/{DATA_DIR}/*.hgt'))
-    model_boxes = json.load(open('/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/gcp-tasks/model_boxes.json'))
+    # model_boxes = json.load(open('/Users/tombo/uu/TBECNEL/Tetrad/tetrad_site/gcp-tasks/model_boxes.json'))
+    model_boxes = getModelBoxes()
     for region in model_boxes:
         if region['qsrc'] == DATA_DIR.upper(): 
             break
@@ -125,6 +137,9 @@ def main():
                 lon_hi=region['lon_hi'])
 
     print(final['elevs'].shape, final['lats'].shape, final['lons'].shape)
+
+    print('rlats =', [region['lat_lo'], region['lat_lo'], region['lat_hi'], region['lat_hi']])
+    print('rlons =', [region['lon_lo'], region['lon_hi'], region['lon_hi'], region['lon_lo']])
 
     savemat(MAT_OUT, final)
 
