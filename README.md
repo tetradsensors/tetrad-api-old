@@ -1,4 +1,4 @@
-# US Ignite Webpage and Backend
+# Tetrad Backend
 These are instructions for setting up the Python Virtual Environment and frontend of the US Ignite site. This project was larely adapted from [AQ&U](https://github.com/aqandu/aqandu_live_site). We use Python 3 at its latest version (on GCP) which, at the time of writing, is 3.8. These instructions assume that you have python 3.8 and pip installed locally.
 
 ## Table of Contents
@@ -48,7 +48,11 @@ gcloud app deploy --appyaml app.yaml --verbosity debug --no-cache --promote
 
 This will start building the containers that serve the website. You can check for a successful deployment from the app engine versions dashboard in GCP. The app usually builds and deploys within a few minutes, but sometimes, Google can be a little slow with the building.
 
-**NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.
+**NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using 
+
+```bash
+gcloud config set app/cloud_build_timeout 1200
+```
 
 -----------------
 
