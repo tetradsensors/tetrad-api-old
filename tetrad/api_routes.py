@@ -416,9 +416,9 @@ def getEstimateMap():
     
 
     # Convert dates to strings
-    start = query_datetime - TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
+    start = query_datetime - (TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale))
+    end = query_datetime + (TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale))
     start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = query_datetime + TIME_KERNEL_FACTOR_PADDING * timedelta(hours=time_length_scale)
     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     sensor_data = _requestDataInRadius(

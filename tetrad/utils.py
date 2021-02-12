@@ -1,5 +1,6 @@
 from os import getenv
 from datetime import datetime, timedelta
+import dateutil
 from pytz import timezone
 from utm import from_latlon
 from matplotlib.path import Path
@@ -16,8 +17,8 @@ from tetrad.classes import ArgumentError
 from tetrad.api_consts import *
 
 
-DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S America/Denver"
+DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S+0000"
+BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 def getModelBoxes():
     gs_client = storage.Client()
@@ -50,16 +51,14 @@ def getModelRegion(src):
 
 def parseDatetimeString(datetime_string:str):
     """Parse date string into a datetime object"""
-    if not verifyDateString(datetime_string): 
-        return None
-    return datetime.strptime(datetime_string, DATETIME_FORMAT).astimezone(timezone('UTC'))
+    return dateutil.parser.parse(datetime_string, yearfirst=True, dayfirst=False)
 
 
-def datetimeToBigQueryTimestamp(date):
-    try:
-        return date.strftime(BQ_DATETIME_FORMAT)
-    except AttributeError:
-        return None
+# def datetimeToBigQueryTimestamp(date):
+#     try:
+#         return date.strftime(BQ_DATETIME_FORMAT)
+#     except AttributeError:
+#         return None
 
 
 # # Load up elevation grid
@@ -437,8 +436,8 @@ def idsToWHEREClause(ids, id_field_name):
 def verifyDateString(dateString:str) -> bool:
     """Check if date string is valid"""
     try:
-        return dateString == datetime.strptime(dateString, DATETIME_FORMAT).strftime(DATETIME_FORMAT)
-    except ValueError:
+        return bool(dateutil.parser.parse(dateString, yearfirst=True, dayfirst=False))
+    except dateutil.parser.ParserError:
         return False
 
 
@@ -587,10 +586,10 @@ def argParseDevices(devices_str:str):
 
 
 def argParseDatetime(datetime_str:str):
-    r = parseDatetimeString(datetime_str)
-    if r is None:
+    try:
+        return parseDatetimeString(datetime_str)
+    except dateutil.parser.ParserError:
         raise ArgumentError(f"Invalid datetime format. Correct format is: \"{DATETIME_FORMAT}\"", status_code=400)
-    return r
 
 
 def argParseBBox(bbox:str):
