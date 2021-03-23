@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Salt Lake City, Utah",
+        "table": "slc_ut",
+        "qsrc": "SLC",
+        "lat_hi": 40.806852,
+        "lat_lo": 40.644519,
+        "lon_hi": -111.811118,
+        "lon_lo": -111.971465
+    },
+    {
+        "name": "Chattanooga, Tennessee",
+        "table": "chatt_tn",
+        "qsrc": "CHATT",
+        "lat_hi": 35.40651241397787,
+        "lat_lo": 34.75294675481935,
+        "lon_hi": -84.87573445821378,
+        "lon_lo": -85.69879142670808
+    },
+    {
+        "name": "Cleveland, Ohio",
+        "table": "clev_oh",
+        "qsrc": "CLEV",
+        "lat_hi": 41.79579575367248,
+        "lat_lo": 40.83277930855361, 
+        "lon_hi": -81.23046857557351,
+        "lon_lo": -82.46471686015876
+    },
+    {
+        "name": "Kansas City, Missouri",
+        "table": "kc_mo",
+        "qsrc": "KC",
+        "lat_hi": 39.41534400903418,
+        "lat_lo": 38.61897675250598,
+        "lon_hi": -94.16206570357167,
+        "lon_lo": -95.25615003173336
+    }
+]
