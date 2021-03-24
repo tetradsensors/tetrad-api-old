@@ -54,6 +54,10 @@
         "type": "BOOLEAN"
     },
     {
+        "name": "RSSI",
+        "type": "INTEGER"
+    },
+    {
         "name": "Flags",
         "type": "INTEGER"
     }
