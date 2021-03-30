@@ -8,6 +8,8 @@ ignite/fbAdminConfig.json
 ignite/fbconfig.json
 gcp-tasks/estimate_map_bridge/ignite.json
 
+model_files
+
 # Auto generated files
 ignite/static/.webassets-cache
 ignite/static/.webassets-manifest
