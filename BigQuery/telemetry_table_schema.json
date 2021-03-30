@@ -10,12 +10,8 @@
         "mode": "REQUIRED"
     },
     {
-        "name": "Latitude",
-        "type": "FLOAT"
-    },
-    {
-        "name": "Longitude",
-        "type": "FLOAT"
+        "name": "GPS",
+        "type": "GEOGRAPHY"
     },
     {
         "name": "Elevation",
@@ -58,6 +54,22 @@
         "type": "INTEGER"
     },
     {
+        "name": "Source",
+        "type": "STRING"
+    },
+    {
+        "name": "PMSModel",
+        "type": "STRING"
+    },
+    {
+        "name": "Label",
+        "type": "STRING"
+    },
+    {
+        "name": "Flags",
+        "type": "INTEGER"
+    }
+]   {
         "name": "Flags",
         "type": "INTEGER"
     }

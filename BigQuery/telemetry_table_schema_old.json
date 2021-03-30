@@ -1,0 +1,64 @@
+[
+    {
+        "name": "Timestamp",
+        "type": "TIMESTAMP",
+        "mode": "REQUIRED"
+    },
+    {
+        "name": "DeviceID",
+        "type": "STRING",
+        "mode": "REQUIRED"
+    },
+    {
+        "name": "Latitude",
+        "type": "FLOAT"
+    },
+    {
+        "name": "Longitude",
+        "type": "FLOAT"
+    },
+    {
+        "name": "Elevation",
+        "type": "FLOAT"
+    },
+    {
+        "name": "PM1",
+        "type": "FLOAT"
+    },
+    {
+        "name": "PM2_5",
+        "type": "FLOAT"
+    },
+    {
+        "name": "PM10",
+        "type": "FLOAT"
+    },
+    {
+        "name": "Temperature",
+        "type": "FLOAT"
+    },
+    {
+        "name": "Humidity",
+        "type": "FLOAT"
+    },
+    {
+        "name": "MicsRED",
+        "type": "INTEGER"
+    },
+    {
+        "name": "MicsNOX",
+        "type": "INTEGER"
+    },
+    {
+        "name": "MicsHeater",
+        "type": "BOOLEAN"
+    },
+    {
+        "name": "RSSI",
+        "type": "INTEGER"
+    },
+    {
+        "name": "Flags",
+        "type": "INTEGER"
+    }
+]

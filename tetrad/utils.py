@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 import dateutil
 from dateutil import parser as dateutil_parser
 from pytz import timezone
-from utm import from_latlon
-from matplotlib.path import Path
-from scipy import interpolate
-from scipy.io import loadmat
+# from utm import from_latlon
+# from matplotlib.path import Path
+# from scipy import interpolate
+# from scipy.io import loadmat
 from csv import reader as csv_reader
 import math 
 from flask import jsonify
@@ -263,17 +263,17 @@ def loadLengthScales():
         return length_scales
 
 
-def isQueryInBoundingBox(bounding_box_vertices, query_lat, query_lon):
-    verts = [(0, 0)] * len(bounding_box_vertices)
-    for elem in bounding_box_vertices:
-        verts[elem[0]] = (elem[2], elem[1])
-    # Add first vertex to end of verts so that the path closes properly
-    verts.append(verts[0])
-    codes = [Path.MOVETO]
-    codes += [Path.LINETO] * (len(verts) - 2)
-    codes += [Path.CLOSEPOLY]
-    boundingBox = Path(verts, codes)
-    return boundingBox.contains_point((query_lon, query_lat))
+# def isQueryInBoundingBox(bounding_box_vertices, query_lat, query_lon):
+#     verts = [(0, 0)] * len(bounding_box_vertices)
+#     for elem in bounding_box_vertices:
+#         verts[elem[0]] = (elem[2], elem[1])
+#     # Add first vertex to end of verts so that the path closes properly
+#     verts.append(verts[0])
+#     codes = [Path.MOVETO]
+#     codes += [Path.LINETO] * (len(verts) - 2)
+#     codes += [Path.CLOSEPOLY]
+#     boundingBox = Path(verts, codes)
+#     return boundingBox.contains_point((query_lon, query_lat))
 
 
 def removeInvalidSensors(sensor_data):
@@ -378,15 +378,15 @@ def interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size
     return lon_vector, lat_vector
 
 
-def latlonToUTM(lat, lon):
-    return from_latlon(lat, lon)
+# def latlonToUTM(lat, lon):
+#     return from_latlon(lat, lon)
 
 
 # TODO: Rename
-def convertLatLonToUTM(sensor_data):
-    for datum in sensor_data:
-        datum['utm_x'], datum['utm_y'], datum['zone_num'], _ = latlonToUTM(datum['Latitude'], datum['Longitude'])
-    return sensor_data
+# def convertLatLonToUTM(sensor_data):
+#     for datum in sensor_data:
+#         datum['utm_x'], datum['utm_y'], datum['zone_num'], _ = latlonToUTM(datum['Latitude'], datum['Longitude'])
+#     return sensor_data
 
 def convertRadiusToBBox(r, c):
     N = c[0] + r
@@ -578,17 +578,22 @@ def argParseFields(fields):
     return fields
 
 
-def argParseDevices(devices_str:str):
+def argParseDevices(devices_str:str, single_device=False):
     if devices_str is None:
         return devices_str 
 
     if ',' in devices_str:
         devices = [s.upper() for s in devices_str.split(',')]
+        if single_device:
+            raise ArgumentError(f"Argument 'device' must be 12-digit HEX string", 400)    
     else:
         devices = [devices_str.upper()]
     
     if not verifyDeviceList(devices):
-        raise ArgumentError(f"Argument 'device' must be 12-digit HEX string or list of strings", 400)
+        if single_device:
+            raise ArgumentError(f"Argument 'device' must be 12-digit HEX string", 400)    
+        else:
+            raise ArgumentError(f"Argument 'device' must be 12-digit HEX string or list of strings", 400)
     return devices
 
 
