@@ -4,4 +4,3 @@ dispatch:
 
   - url: "ota.tetradsensors.com/*"
     service: backend
-  

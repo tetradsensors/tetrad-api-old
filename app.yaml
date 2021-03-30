@@ -16,7 +16,7 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
-service: backend
+service: sandbox
 
 runtime: python38
 
@@ -45,12 +45,15 @@ env_variables:
   FLASK_APP: "main.py"
   FLASK_ENV: "development"
   BQ_DATASET_TELEMETRY: "telemetry"
+  BQ_DATASET_META: "meta"
+  BQ_TABLE_META_DEVICES: "devices"
   BQ_TABLE_SLC:    "slc_ut"
   BQ_TABLE_CHATT:  "chatt_tn"
   BQ_TABLE_KC:     "kc_mo"
   BQ_TABLE_CLEV:   "clev_oh"
   BQ_TABLE_BADGPS: "badgps"
   BQ_TABLE_GLOBAL: "global"
+  FIELD_NN:   "Nickname"
   FIELD_TS:   "Timestamp"
   FIELD_ID:   "DeviceID"
   FIELD_LAT:  "Latitude"
@@ -65,6 +68,10 @@ env_variables:
   FIELD_NOX:  "MicsNOX"
   FIELD_HTR:  "MicsHeater"
   FIELD_FLG:  "Flags"
+  FIELD_RSSI: "RSSI"
+  FIELD_SRC:  "Source"
+  FIELD_PMS:  "PMSModel"
+  FIELD_LBL:  "Label"
   Q_SLC:      "SLC"
   Q_CHATT:    "CHATT"
   Q_CLEV:     "CLEV"

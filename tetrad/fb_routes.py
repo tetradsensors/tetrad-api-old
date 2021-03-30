@@ -4,7 +4,7 @@ from tetrad import app, admin_utils
 import traceback 
 from os import getenv
 from io import BytesIO
-import google.cloud.logging 
+import google.cloud.logging
 gcloud_logging_client = google.cloud.logging.Client()
 gcloud_logging_client.get_default_handler()
 gcloud_logging_client.setup_logging()
@@ -65,4 +65,5 @@ def requestUid():
         return {'user_id': user['localId']}, 200
     else:
         return {'message': 'Error'}
+
 

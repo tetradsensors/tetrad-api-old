@@ -496,3 +496,38 @@ def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None, r
 #                })  
 #     response.status_code = 200
 #     return response
+
+
+# @app.route("/nickname", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+@app.route("/nickname", methods=["GET"])
+def nickname():
+
+    args = [
+        'device',
+        'nickname'
+    ]
+
+    req_args = args
+
+    try:
+        utils.verifyArgs(request.args, req_args, args)
+        device = utils.argParseDevices(request.args.get('device', type=str), single_device=True)
+
+        # nicknames
+        nickname = request.args.get('nickname')
+        if not re.match(r'^[ -~]{1,128}$', nickname):
+            raise ArgumentError(f"Parameter 'nickname' must be be between 1 and 128 ASCII characters.")
+        
+    except ArgumentError as e:
+        raise
+
+    # Perform the UPDATE query
+    query = f'''
+    UPDATE
+        `{PROJECT_ID}.{getenv('BQ_DATASET_META')}.{getenv('BQ_TABLE_META_DEVICES')}`
+    SET
+        {getenv('FIELD_NN')} = "{nickname}"
+    WHERE
+        {getenv('FIELD_ID')} = "{device}"
+    '''
+
