@@ -498,8 +498,8 @@ def _requestDataInRadius(srcs, fields, start, end, radius, center, id_ls=None, r
 #     return response
 
 
-# @app.route("/nickname", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
-@app.route("/nickname", methods=["GET"])
+@app.route("/nickname", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/nickname", methods=["GET"])
 def nickname():
 
     args = [
@@ -531,3 +531,7 @@ def nickname():
         {getenv('FIELD_ID')} = "{device}"
     '''
 
+    print(query)
+    bq_client.query(query)
+
+    return 'success', 200

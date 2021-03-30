@@ -594,7 +594,10 @@ def argParseDevices(devices_str:str, single_device=False):
             raise ArgumentError(f"Argument 'device' must be 12-digit HEX string", 400)    
         else:
             raise ArgumentError(f"Argument 'device' must be 12-digit HEX string or list of strings", 400)
-    return devices
+    if single_device:
+        return devices[0]
+    else:
+        return devices
 
 
 def argParseDatetime(datetime_str:str):
