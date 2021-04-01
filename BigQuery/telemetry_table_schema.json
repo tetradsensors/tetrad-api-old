@@ -68,9 +68,9 @@
     {
         "name": "Flags",
         "type": "INTEGER"
-    }
-]   {
-        "name": "Flags",
-        "type": "INTEGER"
+    },
+    {
+        "name": "Pressure",
+        "type": "FLOAT"
     }
 ]
