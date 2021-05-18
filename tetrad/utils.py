@@ -12,7 +12,7 @@ import math
 from flask import jsonify
 import numpy as np
 import re
-from google.cloud import storage
+from google.cloud.storage import Client as GSClient
 import json
 from tetrad.classes import ArgumentError
 from tetrad.api_consts import *
@@ -21,33 +21,50 @@ from tetrad.api_consts import *
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S+0000"
 BQ_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-def getModelBoxes():
-    gs_client = storage.Client()
+# def getModelBoxes():
+#     gs_client = storage.Client()
+#     bucket = gs_client.get_bucket(getenv("GS_BUCKET"))
+#     blob = bucket.get_blob(getenv("GS_MODEL_BOXES"))
+#     model_data = json.loads(blob.download_as_string())
+#     return model_data
+# MODEL_BOXES = getModelBoxes()
+
+
+def get_region_info():    
+    gs_client = GSClient()
     bucket = gs_client.get_bucket(getenv("GS_BUCKET"))
-    blob = bucket.get_blob(getenv("GS_MODEL_BOXES"))
-    model_data = json.loads(blob.download_as_string())
-    return model_data
-MODEL_BOXES = getModelBoxes()
+    blob = bucket.get_blob(getenv("GS_REGION_INFO_FILENAME"))
+    return json.loads(blob.download_as_string())
+REGION_INFO = get_region_info()
+
+# All regions with bounding boxes
+ACTIVE_REGIONS = [k for k,v in REGION_INFO.items() if v['enabled']]
+
+# All regions with GPS coordinates
+ALL_GPS_LABELS = ACTIVE_REGIONS + [BQ_LABEL_GLOBAL]
+
+# All labels
+ALL_LABELS = ACTIVE_REGIONS + [BQ_LABEL_BADGPS, BQ_LABEL_GLOBAL]
 
 
-def getModelRegion(src):
-    """
-    MODEL_BOXES is a list of dicts stored in Google Cloud Storage.
-    Each dict in the list looks like this:
-    {
-        "name": "Salt Lake City, Utah",
-        "table": "slc_ut",
-        "qsrc": "SLC",
-        "lat_hi": 40.806852,
-        "lat_lo": 40.644519,
-        "lon_hi": -111.811118,
-        "lon_lo": -111.971465
-    }
-    """
-    for r in MODEL_BOXES:
-        if r['qsrc'] == src:
-            return r
-    return None
+# def getModelRegion(src):
+#     """
+#     MODEL_BOXES is a list of dicts stored in Google Cloud Storage.
+#     Each dict in the list looks like this:
+#     {
+#         "name": "Salt Lake City, Utah",
+#         "table": "slc_ut",
+#         "qsrc": "SLC",
+#         "lat_hi": 40.806852,
+#         "lat_lo": 40.644519,
+#         "lon_hi": -111.811118,
+#         "lon_lo": -111.971465
+#     }
+#     """
+#     for r in MODEL_BOXES:
+#         if r['qsrc'] == src:
+#             return r
+#     return None
             
 
 def parseDatetimeString(datetime_string:str):
@@ -69,40 +86,40 @@ def parseDatetimeString(datetime_string:str):
 
 
 # # Load up elevation grid
-def setupElevationInterpolator():
-    elevInterps = {}
-    print('setupElevationInterpolator')
-    for k, v in ELEV_MAPS.items():
-        print(k)
-        data = loadmat(v)
-        elevs_grid = data['elevs']
-        lats_arr = data['lats']
-        lons_arr = data['lons']
-        print(lats_arr.shape, lons_arr.shape, elevs_grid.shape)
-        elevInterps[k] = interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
-    print('Finished loading')
-    return elevInterps
+# def setupElevationInterpolator():
+#     elevInterps = {}
+#     print('setupElevationInterpolator')
+#     for k, v in ELEV_MAPS.items():
+#         print(k)
+#         data = loadmat(v)
+#         elevs_grid = data['elevs']
+#         lats_arr = data['lats']
+#         lons_arr = data['lons']
+#         print(lats_arr.shape, lons_arr.shape, elevs_grid.shape)
+#         elevInterps[k] = interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
+#     print('Finished loading')
+#     return elevInterps
 
 
-def setupElevationInterpolatorForSource(src):
-    print('setupElevationInterpolatorForSource')
+# def setupElevationInterpolatorForSource(src):
+#     print('setupElevationInterpolatorForSource')
     
-    if src in ELEV_MAPS:
-        data = loadmat(ELEV_MAPS[src])
-        elevs_grid = data['elevs']
-        lats_arr = data['lats']
-        lons_arr = data['lons']
-        return interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
-    else:
-        return None
+#     if src in ELEV_MAPS:
+#         data = loadmat(ELEV_MAPS[src])
+#         elevs_grid = data['elevs']
+#         lats_arr = data['lats']
+#         lons_arr = data['lons']
+#         return interpolate.interp2d(lons_arr, lats_arr, elevs_grid, kind='cubic')
+#     else:
+#         return None
 
 
-def loadBoundingBox():
-    with open(getenv("BOUNDING_BOX_FILENAME")) as csv_file:
-        read_csv = csv_reader(csv_file, delimiter=',')
-        rows = [row for row in read_csv][1:]
-        bounding_box_vertices = [(index, float(row[1]), float(row[2])) for row, index in zip(rows, range(len(rows)))]
-        return bounding_box_vertices
+# def loadBoundingBox():
+#     with open(getenv("BOUNDING_BOX_FILENAME")) as csv_file:
+#         read_csv = csv_reader(csv_file, delimiter=',')
+#         rows = [row for row in read_csv][1:]
+#         bounding_box_vertices = [(index, float(row[1]), float(row[2])) for row, index in zip(rows, range(len(rows)))]
+#         return bounding_box_vertices
 
 
 def loadCorrectionFactors():
@@ -245,22 +262,22 @@ def tuneAllFields(data, fields, removeNulls=False):
     )
 
 
-def loadLengthScales():
-    with open(getenv("LENGTH_SCALES_FILENAME")) as csv_file:
-        read_csv = csv_reader(csv_file, delimiter=',')
-        rows = [row for row in read_csv]
-        header = rows[0]
-        rows = rows[1:]
-        length_scales = []
-        for row in rows:
-            rowDict = {name: elem for elem, name in zip(row, header)}
-            rowDict['start_date'] = parseDatetimeString(rowDict['start_date'])
-            rowDict['end_date'] = parseDatetimeString(rowDict['end_date'])
-            rowDict['latlon'] = float(rowDict['latlon'])
-            rowDict['elevation'] = float(rowDict['elevation'])
-            rowDict['time'] = float(rowDict['time'])
-            length_scales.append(rowDict)
-        return length_scales
+# def loadLengthScales():
+#     with open(getenv("LENGTH_SCALES_FILENAME")) as csv_file:
+#         read_csv = csv_reader(csv_file, delimiter=',')
+#         rows = [row for row in read_csv]
+#         header = rows[0]
+#         rows = rows[1:]
+#         length_scales = []
+#         for row in rows:
+#             rowDict = {name: elem for elem, name in zip(row, header)}
+#             rowDict['start_date'] = parseDatetimeString(rowDict['start_date'])
+#             rowDict['end_date'] = parseDatetimeString(rowDict['end_date'])
+#             rowDict['latlon'] = float(rowDict['latlon'])
+#             rowDict['elevation'] = float(rowDict['elevation'])
+#             rowDict['time'] = float(rowDict['time'])
+#             length_scales.append(rowDict)
+#         return length_scales
 
 
 # def isQueryInBoundingBox(bounding_box_vertices, query_lat, query_lon):
@@ -488,7 +505,7 @@ def verifyDeviceList(devices:[str]) -> bool:
 
 
 def verifySources(srcs:list):
-    return set(srcs).issubset(SRC_MAP)
+    return set(srcs).issubset(ALL_LABELS)
 
 
 def verifyFields(fields:list):
@@ -541,23 +558,28 @@ def argParseSources(srcs, single_source=False):
     if ',' in srcs:
         
         if single_source:
-            raise ArgumentError(f"Argument 'src' must be one included from: {', '.join(SRC_MAP)}", 400)
+            raise ArgumentError(f"Argument 'src' must be one included from: {', '.join(ALL_LABELS + ['all'])}", 400)
 
-        srcs = [s.upper() for s in srcs.split(',')]
+        # All the labels are lowercase 
+        srcs = [s.lower() for s in srcs.split(',')]
     else:
-        srcs = [srcs.upper()]
+        # There was only one source - put it in a list for consistency
+        srcs = [srcs.lower()]
     
-    if len(srcs) > 1 and "ALL" in srcs:
-        return "Argument list cannot contain 'ALL' and other sources", 400
-    if len(srcs) > 1 and "ALLGPS" in srcs:
-        return "Argument list cannot contain 'ALLGPS' and other sources", 400
+    # if using an aggregator ('all', or 'allgps'), then it must be the only 'src' parameter
+    if len(srcs) > 1 and "all" in srcs:
+        return "Argument list cannot contain 'all' and other sources", 400
+    if len(srcs) > 1 and "allgps" in srcs:
+        return "Argument list cannot contain 'allgps' and other sources", 400
     
-    if "ALLGPS" in srcs:
-        srcs = list(ALLGPS_TBLS)
+    if "allgps" in srcs:
+        srcs = ALL_GPS_LABELS
+    elif "all" in srcs:
+        srcs = ALL_LABELS
 
     # Check src[s] for validity
     if not verifySources(srcs):
-        raise ArgumentError(f"Argument 'src' must be included from one or more of {', '.join(SRC_MAP)}", 400)
+        raise ArgumentError(f"Argument 'src' must be included from one or more of {', '.join(ALL_LABELS + ['all'])}", 400)
     
     if single_source:
         return srcs[0]
@@ -661,28 +683,39 @@ def argParseRadiusArgs(r:float, c:str):
         raise
 
 
+def queryOR(field, values):
+    '''{field} = "{value[0]}" OR {field} = "{value[1]}" OR ...'''
+    conds = [f'{field} = "{value}"' for value in values]
+    combined = "(" + " OR ".join(conds) + ")"
+    return combined
+
+
 def queryBuildFields(fields):
     # Build the 'fields' portion of query
     q_fields = f"""{FIELD_MAP["DEVICEID"]}, 
                    {FIELD_MAP["TIMESTAMP"]}, 
-                   {FIELD_MAP["LATITUDE"]}, 
-                   {FIELD_MAP["LONGITUDE"]},
+                    ST_Y({FIELD_MAP["GPS"]}) AS {getenv("Q_LAT")}, 
+                    ST_X({FIELD_MAP["GPS"]}) AS {getenv("Q_LON")},
                    {','.join(FIELD_MAP[field] for field in fields)}
                 """
     return q_fields
 
 
-def queryBuildSources(srcs, query_template):
-    """
-    turns a list of bigquery table names and a query
-    template into a union of the queries across the sources
-    """
-    if srcs[0] == "ALL":
-        tbl_union = query_template % ('*')
-    elif len(srcs) == 1:
-        tbl_union = query_template % (SRC_MAP[srcs[0]])
-    else:
-        tbl_union = '(' + ' UNION ALL '.join([query_template % (SRC_MAP[s]) for s in srcs]) + ')'
+# def queryBuildSources(srcs, query_template):
+#     """
+#     turns a list of bigquery table names and a query
+#     template into a union of the queries across the sources
+#     """
+#     if srcs[0] == "ALL":
+#         tbl_union = query_template % ('*')
+#     elif len(srcs) == 1:
+#         tbl_union = query_template % (SRC_MAP[srcs[0]])
+#     else:
+#         tbl_union = '(' + ' UNION ALL '.join([query_template % (SRC_MAP[s]) for s in srcs]) + ')'
     
-    return tbl_union
+#     return tbl_union
+
+
+def queryBuildLabels(labels):
+    return queryOR("Label", labels)
 
