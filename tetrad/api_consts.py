@@ -16,6 +16,9 @@ BQ_LABEL_GLOBAL = getenv("BQ_LABEL_BADGPS")
 SPACE_KERNEL_FACTOR_PADDING = float(getenv("SPACE_KERNEL_FACTOR_PADDING"))
 TIME_KERNEL_FACTOR_PADDING = float(getenv("TIME_KERNEL_FACTOR_PADDING"))
 
+Q_ALL_SOURCES = "all"
+Q_ALL_GPS_SOURCES = "allgps"
+
 # Table sources as they appear in route arguments
 # (the keys) and their mapping to BigQuery table names
 # REGION_MAP = {

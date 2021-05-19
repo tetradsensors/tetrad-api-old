@@ -44,7 +44,7 @@ ACTIVE_REGIONS = [k for k,v in REGION_INFO.items() if v['enabled']]
 ALL_GPS_LABELS = ACTIVE_REGIONS + [BQ_LABEL_GLOBAL]
 
 # All labels
-ALL_LABELS = ACTIVE_REGIONS + [BQ_LABEL_BADGPS, BQ_LABEL_GLOBAL]
+ALL_LABELS = ACTIVE_REGIONS + [BQ_LABEL_BADGPS, BQ_LABEL_GLOBAL, "all", "allgps"]
 
 
 # def getModelRegion(src):
@@ -491,7 +491,7 @@ def verifyDeviceString(device:str) -> bool:
     Forcing caps is delibrate so that it won't 
     make it past this check and into a query (where it will fail)
     """
-    return bool(re.match(r'^[0-9A-F]{12}$', device))
+    return bool(re.match(r'^[\w_\-]{1,64}$', device))
 
 
 def verifyDeviceList(devices:[str]) -> bool:
@@ -549,11 +549,15 @@ def argParseLon(lon):
     return lon
 
 
-def argParseSources(srcs, single_source=False):
+def argParseSources(srcs, single_source=False, canBeNone=False):
     '''
     Parse a 'src' argument from request.args.get('src')
     into a list of sources
     '''
+
+    # Default to "all"
+    if srcs is None and canBeNone:
+        srcs = "all"
 
     if ',' in srcs:
         
@@ -571,11 +575,6 @@ def argParseSources(srcs, single_source=False):
         return "Argument list cannot contain 'all' and other sources", 400
     if len(srcs) > 1 and "allgps" in srcs:
         return "Argument list cannot contain 'allgps' and other sources", 400
-    
-    if "allgps" in srcs:
-        srcs = ALL_GPS_LABELS
-    elif "all" in srcs:
-        srcs = ALL_LABELS
 
     # Check src[s] for validity
     if not verifySources(srcs):
@@ -717,5 +716,14 @@ def queryBuildFields(fields):
 
 
 def queryBuildLabels(labels):
-    return queryOR("Label", labels)
+    """
+    Special cases for "all" and "allgps"
+    TODO: Add special cases for "tetrad", "aqandu", "purpleair" as well
+    """
+    if "all" in labels:
+        return "True"
+    elif "allgps" in labels:
+        return 'Label != "badgps"'
+    else:
+        return queryOR("Label", labels)
 

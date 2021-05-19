@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 import pytz
 from flask import request, jsonify
 import functools
-from google.cloud.storage import Client as GSClient
 from google.cloud.bigquery import Client as BQClient, QueryJobConfig, ScalarQueryParameter
 from tetrad import app, cache, admin_utils, limiter, utils
 from tetrad.api_consts import *
@@ -44,6 +43,7 @@ bq_client = BQClient()
 
 # https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/liveSensors", methods=["GET"])
 # @cache.cached(timeout=119)
 def liveSensors():
 
@@ -83,7 +83,7 @@ def liveSensors():
                     `{BQ_PATH_TELEMETRY}`
                 WHERE 
                     {Q_LABELS}
-                    AND
+                        AND
                     {FIELD_MAP["TIMESTAMP"]} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
             """
 
@@ -124,6 +124,7 @@ def liveSensors():
 
 # https://api.tetradsensors.com/requestData?src=slc_ut&field=pm2_5&start=2021-01-01T00:00:00Z&end=2021-01-22T00:00:00Z
 @app.route("/requestData", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
+# @app.route("/requestData", methods=["GET"])
 def requestData():
     """
     Arguments:
@@ -149,17 +150,19 @@ def requestData():
     ]
 
     req_args = [
-        'src', 
         'field', 
         'start', 
         'end',
     ]
+    # You don't have to include 'src' if 'device' is here
+    if not request.args.get('device', type=str):
+        req_args.append('src')
 
     try:
         utils.verifyArgs(request.args, req_args, args)
         
         # Required
-        srcs    = utils.argParseSources(request.args.get('src', type=str))
+        srcs    = utils.argParseSources(request.args.get('src', type=str), canBeNone=True)
         fields  = utils.argParseFields(request.args.get('field', type=str))
         start   = utils.argParseDatetime(request.args.get('start', type=str))
         end     = utils.argParseDatetime(request.args.get('end', type=str))
@@ -176,7 +179,6 @@ def requestData():
         logging.error(str(e))
         raise
 
-
     #################################
     # Query Picker
     #################################
@@ -187,6 +189,12 @@ def requestData():
         data = _requestData(srcs, fields, start, end, radius=rc[0], center=rc[1], id_ls=devices)
     else:
         data = _requestData(srcs, fields, start, end, bbox=box, id_ls=devices)
+
+    if isinstance(data, int):
+        if data == 408:
+            return "Timeout (2 minutes). Try a smaller query.", 408
+        else:
+            return "Something went wrong. That's all we know. Contact the developers.", data
 
     response = jsonify(data)
     response.status_code = 200
@@ -252,11 +260,15 @@ def _requestData(srcs, fields, start, end, bbox=None, radius=None, center=None, 
             {FIELD_MAP["TIMESTAMP"]}
     """
 
-    print(QUERY)
+    logging.error(QUERY.replace('\n', ' '))
 
     # Run the query and collect the result
-    query_job = bq_client.query(QUERY)
-    rows = query_job.result()
+    try:
+        query_job = bq_client.query(QUERY)
+        rows = query_job.result()
+    except Exception as e:
+        print(str(e))
+        return 408
     
     # break on empty iterator
     if rows.total_rows == 0:

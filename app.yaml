@@ -16,13 +16,13 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
-service: sandbox
+service: backend
 
 runtime: python38
 
 instance_class: F2
 
-entrypoint: gunicorn -b :$PORT main:app
+entrypoint: gunicorn -t 300 -b :$PORT main:app
 
 handlers:
 - url: /static
@@ -104,7 +104,7 @@ env_variables:
   TEMP_BAD_FLAG:  -1000
   HUM_BAD_FLAG:   -1000
   # BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
-  # CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
+  CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   # ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"
   # ELEV_MAP_SLC_FILENAME: "model_files/slc.mat"
   # ELEV_MAP_CHATT_FILENAME: "model_files/chatt.mat"
