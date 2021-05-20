@@ -577,7 +577,7 @@ def argParseSources(srcs, single_source=False, canBeNone=False):
         return "Argument list cannot contain 'allgps' and other sources", 400
     if len(srcs) > 1 and "tetrad" in srcs:
         return "Argument list cannot contain 'tetrad' and other sources", 400
-    if len(srcs) > 1 and "aqandu" in srcs:
+    if len(srcs) > 1 and "purpleair" in srcs:
         return "Argument list cannot contain 'purpleair' and other sources", 400
     if len(srcs) > 1 and "aqandu" in srcs:
         return "Argument list cannot contain 'aqandu' and other sources", 400
