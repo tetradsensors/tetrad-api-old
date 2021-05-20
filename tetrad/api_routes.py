@@ -233,14 +233,13 @@ def _requestData(srcs, fields, start, end, bbox=None, radius=None, center=None, 
             ST_DWITHIN(
                 {FIELD_MAP["GPS"]}, 
                 ST_GEOGPOINT({center['lon']}, {center['lat']}),
-                {radius}
+                {radius * 1000}
             )
         """
     else:
         query_region = "True"
 
     query_labels = utils.queryBuildLabels(srcs)
-
     QUERY = f"""
         SELECT 
             {query_fields}
@@ -260,27 +259,28 @@ def _requestData(srcs, fields, start, end, bbox=None, radius=None, center=None, 
             {FIELD_MAP["TIMESTAMP"]}
     """
 
-    logging.error(QUERY.replace('\n', ' '))
+    # data = ' '.join([i for i in QUERY.replace('\n', ' ').split(' ') if i])
 
     # Run the query and collect the result
-    try:
-        query_job = bq_client.query(QUERY)
-        rows = query_job.result()
-    except Exception as e:
-        print(str(e))
-        return 408
+    # try:
+    query_job = bq_client.query(QUERY)
+    rows = query_job.result()   
+    # except Exception as e:
+    #     print(str(e))
+    #     return 408
     
-    # break on empty iterator
+    # # break on empty iterator
     if rows.total_rows == 0:
         raise NoDataError("No data returned.", status_code=222)
         
-    # Convert Response object (generator) to list-of-dicts
+    # # Convert Response object (generator) to list-of-dicts
     data = [dict(r) for r in rows]
 
-    # Clean data and apply correction factors
-    data = utils.tuneAllFields(data, fields, removeNulls=removeNulls)
+    # # Clean data and apply correction factors
+    # data = utils.tuneAllFields(data, fields, removeNulls=removeNulls)
 
     # Apply correction factors to data
+    
     return data
 
 

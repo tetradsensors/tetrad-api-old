@@ -99,6 +99,8 @@ env_variables:
   Q_HTR:      "MICSHEATER"
   Q_RSSI:     "RSSI"
   Q_PMRAW:    "PM_RAW"
+  Q_SRC:      "SOURCE"
+  Q_LBL:    "LABEL"
   PM_BAD_THRESH:  500
   PM_BAD_FLAG:    -1
   TEMP_BAD_FLAG:  -1000

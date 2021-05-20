@@ -44,7 +44,7 @@ ACTIVE_REGIONS = [k for k,v in REGION_INFO.items() if v['enabled']]
 ALL_GPS_LABELS = ACTIVE_REGIONS + [BQ_LABEL_GLOBAL]
 
 # All labels
-ALL_LABELS = ACTIVE_REGIONS + [BQ_LABEL_BADGPS, BQ_LABEL_GLOBAL, "all", "allgps"]
+ALL_LABELS = ACTIVE_REGIONS + [BQ_LABEL_BADGPS, BQ_LABEL_GLOBAL, "all", "allgps", "tetrad", "purpleair", "aqandu"]
 
 
 # def getModelRegion(src):
@@ -575,6 +575,12 @@ def argParseSources(srcs, single_source=False, canBeNone=False):
         return "Argument list cannot contain 'all' and other sources", 400
     if len(srcs) > 1 and "allgps" in srcs:
         return "Argument list cannot contain 'allgps' and other sources", 400
+    if len(srcs) > 1 and "tetrad" in srcs:
+        return "Argument list cannot contain 'tetrad' and other sources", 400
+    if len(srcs) > 1 and "aqandu" in srcs:
+        return "Argument list cannot contain 'purpleair' and other sources", 400
+    if len(srcs) > 1 and "aqandu" in srcs:
+        return "Argument list cannot contain 'aqandu' and other sources", 400
 
     # Check src[s] for validity
     if not verifySources(srcs):
@@ -634,12 +640,12 @@ def argParseBBox(bbox:str):
     try:
         bb = list(map(float, bbox.split(',')))
         if not (verifyLatLon(bb[0], bb[2]) and verifyLatLon(bb[1], bb[3])):
-            raise Exception
-        if bb[0] <= bb[2] or bb[1]<=bb[3]:
-            raise Exception
-        return bb
-    except:
-        raise ArgumentError("Argument 'box' error. 'box' must be list of latitudes and longitudes in the order of North,South,East,West.", status_code=400)
+            raise ArgumentError("Not valid lat/lon", 400)
+        if bb[0] <= bb[1] or bb[2] <= bb[3]:
+            raise ArgumentError("Order must be North, South, East, West", 400)
+        return {'lat_hi': bb[0], 'lat_lo': bb[1], 'lon_hi': bb[2], 'lon_lo': bb[3]}
+    except Exception as e:
+        raise e
 
 
 def argParseRadius(r:float):
@@ -658,7 +664,7 @@ def argParseCenter(c:str):
     try:
         lat, lon = list(map(float, c.split(',')))
         if verifyLatLon(lat, lon):
-            return (lat, lon)
+            return {'lat': lat, 'lon': lon}
     except:
         raise ArgumentError("Argument 'center' must be a valid pair of latitude,longitude coordinates, such as 'center=88.1,-110.2242", status_code=400)
 
@@ -692,9 +698,11 @@ def queryOR(field, values):
 def queryBuildFields(fields):
     # Build the 'fields' portion of query
     q_fields = f"""{FIELD_MAP["DEVICEID"]}, 
-                   {FIELD_MAP["TIMESTAMP"]}, 
-                    ST_Y({FIELD_MAP["GPS"]}) AS {getenv("Q_LAT")}, 
-                    ST_X({FIELD_MAP["GPS"]}) AS {getenv("Q_LON")},
+                   {FIELD_MAP["TIMESTAMP"]},
+                   {FIELD_MAP["SOURCE"]},
+                   {FIELD_MAP["LABEL"]},
+                    ST_Y({FIELD_MAP["GPS"]}) AS Latitude, 
+                    ST_X({FIELD_MAP["GPS"]}) AS Longitude,
                    {','.join(FIELD_MAP[field] for field in fields)}
                 """
     return q_fields
@@ -723,7 +731,41 @@ def queryBuildLabels(labels):
     if "all" in labels:
         return "True"
     elif "allgps" in labels:
-        return 'Label != "badgps"'
+        regions = [k for k in REGION_INFO.values() if k['enabled']]
+        return f'(IFNULL(Label, "") != "badgps" AND {queryBuildMultipleRegions(regions)}) OR (Label = "global")'
+    elif "tetrad" in labels:
+        return 'Source = "Tetrad"'
+    elif "purpleair" in labels:
+        return 'Source = "PurpleAir"'
+    elif "aqandu" in labels:
+        return 'Source = "AQ&U"'
     else:
         return queryOR("Label", labels)
 
+
+def queryBuildMultipleRegions(region_list):
+    '''
+    Build multiple bounding boxes for a BigQuery query.
+    structure is: (<inside box> OR <inside box> OR ...)
+    region_list: {'lat_lo': <>, 'lat_hi': <>, 'lon_lo': <>, 'lon_hi': <>}
+    '''
+    region_q = []
+    for region in region_list:
+        s = queryBuildRegion(lat_hi=region['lat_hi'], lat_lo=region['lat_lo'], lon_hi=region['lon_hi'], lon_lo=region['lon_lo'])
+        region_q.append(s)
+    region_q = '(' + ' OR '.join(region_q) + ')'
+    return region_q
+
+
+def queryBuildRegion(lat_hi, lat_lo, lon_hi, lon_lo):
+    '''
+    Build a bounding box for a BigQuery query
+    '''
+    return f"""
+            ST_WITHIN(
+                {FIELD_MAP["GPS"]}, 
+                ST_GeogFromGeoJSON(
+                    '{{"type": "Polygon", "coordinates": [[[{lon_hi},{lat_hi}],[{lon_hi},{lat_lo}],[{lon_lo},{lat_lo}],[{lon_lo},{lat_hi}],[{lon_hi},{lat_hi}]]]}}'
+                )
+            )
+    """
