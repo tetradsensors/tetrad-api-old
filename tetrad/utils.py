@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from urllib import parse
 import pytz
 import utm
 from matplotlib.path import Path
@@ -782,6 +783,9 @@ import logging
 #     """
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+DATETIME_FORMAT_NOTZ = "%Y-%m-%dT%H:%M:%S"
+DEFAULT_START_TIME = "1900-01-01T00:00:00Z"
+DEFAULT_END_TIME = "2200-01-01T00:00:00Z"
 
 
 def validateDate(dateString):
@@ -794,7 +798,10 @@ def validateDate(dateString):
 
 def parseDateString(datetime_string):
     """Parse date string into a datetime object"""
-    return datetime.strptime(datetime_string, DATETIME_FORMAT).replace(tzinfo=timezone.utc)
+    if 'Z' in datetime_string:
+        return datetime.strptime(datetime_string, DATETIME_FORMAT).replace(tzinfo=timezone.utc)
+    else:
+        return datetime.strptime(datetime_string, DATETIME_FORMAT_NOTZ).replace(tzinfo=timezone.utc)
 
 #  this breaks the time part of the  eatimation/data into pieces to speed up computation
 # sequence_size_mins
@@ -902,7 +909,20 @@ def loadCorrectionFactors(filename):
 
 def getCorrectionFactorsFromRegion(region):
     """region is the dict from area_params-tetrad.json file"""
-    return region["Correction Factors"]
+    cv = region['Correction Factors']
+    for sensorType, timeList in cv.items():
+        newTimeList = []
+        for d in timeList:
+            if d['starttime'] == 'default':
+                d['starttime'] = DEFAULT_START_TIME
+            if d['endtime'] == 'default':
+                d['endtime'] = DEFAULT_END_TIME
+            d['starttime'] = parseDateString(d['starttime'])
+            d['endtime'] = parseDateString(d['endtime'])
+            newTimeList.append(d)
+        cv[sensorType] = newTimeList
+
+    return cv
 
 
 def loadLengthScales(filename):
@@ -946,6 +966,10 @@ def removeInvalidSensors(sensor_data):
         pm25 = datum['PM2_5']
         datum['daysSinceEpoch'] = (datum['time'] - epoch).days
         key = (datum['daysSinceEpoch'], datum['ID'])
+        if pm25 is None:
+            dayCounts[key] = 1
+            dayReadings[key] = 1e9
+            continue
         if key in dayCounts:
             dayCounts[key] += 1
             dayReadings[key] += pm25

@@ -16,6 +16,8 @@ from datetime import datetime, timedelta
 # from time import time 
 
 from datetime import datetime, timedelta
+
+from numpy.lib.arraysetops import isin
 from tetrad import app, bq_client, bigquery, utils, elevation_interpolator, gaussian_model_utils, DEBUG
 from tetrad.classes import *
 if not DEBUG:
@@ -450,9 +452,13 @@ def getEstimateMap():
 #     if not ((zone_num_lo == zone_num_hi) and (zone_let_lo == zone_let_hi)):
 #         return 'Requested region spans UTM zones', 400        
 
-    yPred, yVar = computeEstimatesForLocations(query_dates, query_locations, query_elevations)
+    ret = computeEstimatesForLocations(query_dates, query_locations, query_elevations)
 
-    print(yPred, yVar)
+    if isinstance(ret[0], str):
+        print("there was an error:", ret)
+        return ret
+    else:
+        yPred, yVar, status = ret
     
     # yPred, yVar = gaussian_model_utils.estimateUsingModel(
     #     model, locations_lat, locations_lon, elevations, [query_datetime], time_offset)
@@ -555,8 +561,9 @@ def computeEstimatesForLocations(query_dates, query_locations, query_elevations)
     # Step 4, parse sensor type from the version
     sensor_source_to_type = {'Tetrad': '3003', 'AQ&U': '3003', 'PurpleAir': '5003', 'DAQ': '0000'}
 # DAQ does not need a correction factor
+    print('add pm sensor type')
     for datum in sensor_data:
-        datum['type'] =  sensor_source_to_type[datum['Source']]
+        datum['type'] =  sensor_source_to_type[datum['SensorSource']]
 
     app.logger.info(f'Fields: {sensor_data[0].keys()}')
 
@@ -565,12 +572,14 @@ def computeEstimatesForLocations(query_dates, query_locations, query_elevations)
     sensor_data = utils.removeInvalidSensors(sensor_data)
 
     # step 5, apply correction factors to the data
+    print('correction factors...')
     for datum in sensor_data:
         # datum['PM2_5'] = utils.applyCorrectionFactor(correction_factors, datum['time'], datum['PM2_5'], datum['type'])
         datum['PM2_5'] = utils.applyCorrectionFactor2(correction_factors, datum['time'], datum['PM2_5'], datum['type'])
 
     # step 6, add elevation values to the data
     # NOTICE - the elevation object takes locations in the form "lon-lat"
+    print('altitude')
     for datum in sensor_data:
         if 'Altitude' not in datum:
             datum['Altitude'] = elevation_interpolator([datum['Longitude']],[datum['Latitude']])[0]
@@ -650,18 +659,20 @@ def request_model_data_local(lats, lons, radius, start_date, end_date):
     app.logger.info("Query bounding box is %f %f %f %f" %(lat_lo, lat_hi, lon_lo, lon_hi))
 
    
+    print('querying...')
     rows = submit_sensor_query(lat_lo, lat_hi, lon_lo, lon_hi, start_date, end_date)
-    
+    print('done...')
     for row in rows:
         model_data.append({
-            "ID": str(row.ID),
+            "ID": str(row.DeviceID),
             "Latitude": row.Latitude,
             "Longitude": row.Longitude,
-            "time": row.time,
+            "time": row.Timestamp,
             "PM2_5": row.PM2_5,
-            "SensorModel": row.SensorModel,
-            "SensorSource": row.SensorSource,
+            # "SensorModel": row.SensorModel,
+            "SensorSource": row.Source,
         })
+    print('done converting')
 
     return model_data
 
@@ -747,5 +758,5 @@ def submit_sensor_query(lat_lo, lat_hi, lon_lo, lon_hi, start_date, end_date):
     # Waits for query to finish
     sensor_data = query_job.result()  
 
-    return(sensor_data)
+    return sensor_data
 

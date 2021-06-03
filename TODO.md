@@ -3,4 +3,5 @@
     - added `utils.getRegionContainingPoint`
 - length scales make us leave elevation region
 - in `interpolateQueryLocations` np.arange() doesn't include last point -- switch to linspace
-
+- json correction factors time data doesn't contain 'Z' (doesn't match DATETIME_FORMAT)
+- too many values returned in `computeEstimatesForLocations` (expected 2 got 3) - "status" is returned as #3
