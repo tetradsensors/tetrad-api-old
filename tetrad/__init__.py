@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 import os
 
 if DEBUG:
@@ -26,12 +26,16 @@ else:
     gcloud_logging_client.setup_logging()
     import logging
 
-    app = Flask(__name__, subdomain_matching=True)
+    # app = Flask(__name__, subdomain_matching=True)
+    app = Flask(__name__)
+
     # cors = CORS(app, resources={r"/request_historical*": {"origins": "*"}})
     cors = CORS(app)
     #Below Route to be tested once we get the API running
     #cors = CORS(app, ressources={r"/request_historical*": {"origins": "https://www.tetradsensors.com/*"}})
-    app.config['SERVER_NAME'] = os.getenv('DOMAIN_NAME')
+    
+    # app.config['SERVER_NAME'] = os.getenv('DOMAIN_NAME')
+    
     app.config["CACHE_TYPE"] = "simple"
     app.config["CACHE_DEFAULT_TIMEOUT"] = 1
     app.config['CORS_HEADERS'] = 'Content-Type'
@@ -39,7 +43,7 @@ else:
     limiter = Limiter(
         app, 
         key_func=get_remote_address,
-        default_limits=['2000 per day']
+        default_limits=['5000 per day']
     )
 
     cache = Cache(app)

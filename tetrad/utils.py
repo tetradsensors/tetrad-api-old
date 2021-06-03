@@ -9,6 +9,7 @@ from scipy.io import loadmat
 import csv
 import json
 import logging
+from tetrad.classes import *
 
 # from os import getenv
 # from datetime import datetime, timedelta
@@ -49,7 +50,7 @@ import logging
 #     return json.loads(blob.download_as_string())
 # REGION_INFO = get_region_info()
 
-# # All regions with bounding boxes
+# All regions with bounding boxes
 # ACTIVE_REGIONS = [k for k,v in REGION_INFO.items() if v['enabled']]
 
 # # All regions with GPS coordinates
@@ -520,29 +521,30 @@ import logging
 #     return set(srcs).issubset(ALL_LABELS)
 
 
-# def verifyFields(fields:list):
-#     return set(fields).issubset(FIELD_MAP)
+def verifyFields(fields:list):
+    # return set(fields).issubset(FIELD_MAP)
+    return True
 
 
-# def verifyRequiredArgs(request_args, required_args):
-#     if any(elem not in list(request_args) for elem in list(required_args)):
-#         raise ArgumentError(f'Missing arg, one of: {", ".join(list(required_args))}', status_code=400)
-#     return True
+def verifyRequiredArgs(request_args, required_args):
+    if any(elem not in list(request_args) for elem in list(required_args)):
+        raise ArgumentError(f'Missing arg, one of: {", ".join(list(required_args))}', status_code=400)
+    return True
 
 
-# def verifyPossibleArgs(request_args, possible_args):
-#     if not set(request_args).issubset(set(possible_args)):
-#         raise ArgumentError(f'Argument outside of possible argument list: [{", ".join(list(possible_args))}]', status_code=400)
-#     return True 
+def verifyPossibleArgs(request_args, possible_args):
+    if not set(request_args).issubset(set(possible_args)):
+        raise ArgumentError(f'Argument outside of possible argument list: [{", ".join(list(possible_args))}]', status_code=400)
+    return True 
 
 
-# def verifyArgs(request_args, required_args, possible_args):
-#     try:
-#         verifyRequiredArgs(request_args, required_args)
-#         verifyPossibleArgs(request_args, possible_args)
-#     except ArgumentError:
-#         raise
-#     return True
+def verifyArgs(request_args, required_args, possible_args):
+    try:
+        verifyRequiredArgs(request_args, required_args)
+        verifyPossibleArgs(request_args, possible_args)
+    except ArgumentError:
+        raise
+    return True
 
 
 # def argParseLat(lat):
@@ -604,17 +606,17 @@ import logging
 #         return srcs
 
 
-# def argParseFields(fields):
-#     # Multiple fields?
-#     if ',' in fields:
-#         fields = [s.upper() for s in fields.split(',')]
-#     else:
-#         fields = [fields.upper()]
+def argParseFields(fields):
+    # Multiple fields?
+    if ',' in fields:
+        fields = [s.upper() for s in fields.split(',')]
+    else:
+        fields = [fields.upper()]
 
-#     # Check field[s] for validity -- all fields must be in FIELD_MAP to pass
-#     if not verifyFields(fields):
-#         raise ArgumentError(f"Argument 'field' must be included from one or more of {', '.join(FIELD_MAP)}", status_code=400)
-#     return fields
+    # Check field[s] for validity -- all fields must be in FIELD_MAP to pass
+    if not verifyFields(fields):
+        raise ArgumentError(f"Argument 'field' must be included from one or more of {', '.join(FIELD_MAP)}", status_code=400)
+    return fields
 
 
 # def argParseDevices(devices_str:str, single_device=False):
@@ -707,17 +709,17 @@ import logging
 #     return combined
 
 
-# def queryBuildFields(fields):
-#     # Build the 'fields' portion of query
-#     q_fields = f"""{FIELD_MAP["DEVICEID"]}, 
-#                    {FIELD_MAP["TIMESTAMP"]},
-#                    {FIELD_MAP["SOURCE"]},
-#                    {FIELD_MAP["LABEL"]},
-#                     ST_Y({FIELD_MAP["GPS"]}) AS Latitude, 
-#                     ST_X({FIELD_MAP["GPS"]}) AS Longitude,
-#                    {','.join(FIELD_MAP[field] for field in fields)}
-#                 """
-#     return q_fields
+def queryBuildFields(fields):
+    # Build the 'fields' portion of query
+    q_fields = f"""DeviceID, 
+                   Timestamp,
+                   Source,
+                   Label,
+                    ST_Y(GPS) AS Latitude, 
+                    ST_X(GPS) AS Longitude,
+                   {','.join(fields)}
+                """
+    return q_fields
 
 
 # # def queryBuildSources(srcs, query_template):
@@ -735,24 +737,25 @@ import logging
 # #     return tbl_union
 
 
-# def queryBuildLabels(labels):
-#     """
-#     Special cases for "all" and "allgps"
-#     TODO: Add special cases for "tetrad", "aqandu", "purpleair" as well
-#     """
-#     if "all" in labels:
-#         return "True"
-#     elif "allgps" in labels:
-#         regions = [k for k in REGION_INFO.values() if k['enabled']]
-#         return f'(IFNULL(Label, "") != "badgps" AND {queryBuildMultipleRegions(regions)}) OR (Label = "global")'
-#     elif "tetrad" in labels:
-#         return 'Source = "Tetrad"'
-#     elif "purpleair" in labels:
-#         return 'Source = "PurpleAir"'
-#     elif "aqandu" in labels:
-#         return 'Source = "AQ&U"'
-#     else:
-#         return queryOR("Label", labels)
+def queryBuildLabels(labels):
+    """
+    Special cases for "all" and "allgps"
+    TODO: Add special cases for "tetrad", "aqandu", "purpleair" as well
+    """
+    return "True"
+    # if "all" in labels:
+    #     return "True"
+    # elif "allgps" in labels:
+    #     regions = [k for k in REGION_INFO.values() if k['enabled']]
+    #     return f'(IFNULL(Label, "") != "badgps" AND {queryBuildMultipleRegions(regions)}) OR (Label = "global")'
+    # elif "tetrad" in labels:
+    #     return 'Source = "Tetrad"'
+    # elif "purpleair" in labels:
+    #     return 'Source = "PurpleAir"'
+    # elif "aqandu" in labels:
+    #     return 'Source = "AQ&U"'
+    # else:
+    #     return queryOR("Label", labels)
 
 
 # def queryBuildMultipleRegions(region_list):

@@ -81,84 +81,86 @@ def handle_nodata_error(error):
 # https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
 
 # @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
-# # @app.route("/liveSensors", methods=["GET"])
+@app.route("/liveSensors", methods=["GET"])
 # # @cache.cached(timeout=119)
-# def liveSensors():
+def liveSensors():
 
-#     def argParseDelta(delta):
-#         delta = delta or (24 * 60)
-#         if delta <= 0:
-#             raise ArgumentError("Argument 'delta' must be a positive integer (minutes)", 400)
-#         return delta
+    def argParseDelta(delta):
+        delta = delta or (24 * 60)
+        if delta <= 0:
+            raise ArgumentError("Argument 'delta' must be a positive integer (minutes)", 400)
+        return delta
 
-#     req_args = [
-#         'src',
-#         'field'
-#     ]
+    req_args = [
+        'src',
+        'field'
+    ]
 
-#     #################################
-#     # Arg parse
-#     #################################
+    #################################
+    # Arg parse
+    #################################
 
-#     try:
-#         utils.verifyRequiredArgs(request.args, req_args)
-#         srcs   = utils.argParseSources(request.args.get('src', type=str))
-#         fields = utils.argParseFields(request.args.get('field', type=str))
-#         delta  = argParseDelta(request.args.get('delta', type=int))
-#     except ArgumentError:
-#         raise
+    try:
+        utils.verifyRequiredArgs(request.args, req_args)
+        srcs = 'all'
+        # srcs   = utils.argParseSources(request.args.get('src', type=str))
+        fields = utils.argParseFields(request.args.get('field', type=str))
+        delta  = argParseDelta(request.args.get('delta', type=int))
+    except ArgumentError:
+        raise
 
-#     #################################
-#     # Query Builder
-#     #################################
+    #################################
+    # Query Builder
+    #################################
 
-#     Q_FIELDS = utils.queryBuildFields(fields)
-#     Q_LABELS = utils.queryBuildLabels(srcs)
-#     # Build the query
-#     SUBQ = f"""SELECT 
-#                     {Q_FIELDS}
-#                 FROM 
-#                     `{BQ_PATH_TELEMETRY}`
-#                 WHERE 
-#                     {Q_LABELS}
-#                         AND
-#                     {FIELD_MAP["TIMESTAMP"]} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
-#             """
+    Q_FIELDS = utils.queryBuildFields(fields)
+    Q_LABELS = utils.queryBuildLabels(srcs)
+    # Build the query
+    SUBQ = f"""SELECT 
+                    {Q_FIELDS}
+                FROM 
+                    `telemetry.telemetry`
+                WHERE 
+                    {Q_LABELS}
+                        AND
+                    Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {delta} MINUTE)
+            """
 
-#     # Build the full query
-#     q = f"""
-#     SELECT 
-#         * EXCEPT(row_num)
-#     FROM
-#         (
-#             SELECT 
-#                 *, 
-#                 ROW_NUMBER() 
-#             OVER
-#                 (
-#                     PARTITION BY 
-#                         {FIELD_MAP["DEVICEID"]} 
-#                     ORDER BY 
-#                         {FIELD_MAP["TIMESTAMP"]} DESC
-#                 ) row_num
-#             FROM 
-#                 (
-#                     {SUBQ}
-#                 )
-#         )
-#     WHERE 
-#         row_num = 1;
-#     """
+    # Build the full query
+    q = f"""
+    SELECT 
+        * EXCEPT(row_num)
+    FROM
+        (
+            SELECT 
+                *, 
+                ROW_NUMBER() 
+            OVER
+                (
+                    PARTITION BY 
+                        DeviceID 
+                    ORDER BY 
+                        Timestamp DESC
+                ) row_num
+            FROM 
+                (
+                    {SUBQ}
+                )
+        )
+    WHERE 
+        row_num = 1;
+    """
 
-#     query_job = bq_client.query(q)
-#     rows = query_job.result()
+    query_job = bq_client.query(q)
+    rows = query_job.result()
 
-#     data = [dict(r) for r in rows]
+    data = [dict(r) for r in rows]
 
-#     # Clean data and apply correction factors
-#     data = utils.tuneAllFields(data, fields)
+    # Clean data and apply correction factors
+    # data = utils.tuneAllFields(data, fields)
+    data = [d for d in data if d['PM2_5'] is not None and d['PM2_5'] < 500]
 
-#     return jsonify(data), 200
+    return jsonify(data), 200
 
 # # https://api.tetradsensors.com/requestData?src=slc_ut&field=pm2_5&start=2021-01-01T00:00:00Z&end=2021-01-22T00:00:00Z
 # @app.route("/requestData", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
@@ -323,7 +325,7 @@ def handle_nodata_error(error):
 
 
 # @app.route("/nickname", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
-# # @app.route("/nickname", methods=["GET"])
+# @app.route("/nickname", methods=["GET"])
 # def nickname():
 
 #     args = [
@@ -361,8 +363,8 @@ def handle_nodata_error(error):
 #     return 'success', 200
 
 
-# http://127.0.0.1:8080/api/getEstimateMap?latLo=39.4&latHi=41.1&lonLo=-112&lonHi=-111.8&date=2021-05-26T15:00:00Z&latSize=20&lonSize=20
-@app.route("/api/getEstimateMap", methods=["GET"])
+# http://127.0.0.1:8080/getEstimateMap?latLo=39.4&latHi=41.1&lonLo=-112&lonHi=-111.8&date=2021-05-26T15:00:00Z&latSize=20&lonSize=20
+@app.route("/getEstimateMap", methods=["GET"])
 def getEstimateMap():
 
     # this species grid positions should be interpolated in UTM coordinates
