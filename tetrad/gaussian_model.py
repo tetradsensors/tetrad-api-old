@@ -13,11 +13,9 @@ import torch.nn as nn
 import numpy as np
 import math
 import scipy
-from scipy.fft import fft
 
 
-
-JITTER = 1e-6
+JITTER = 1e-3
 
 # this does an eigen analysis of a symmetric circulant matrix using an FFT
 #def symeigCirculant(data_first_row, eigenvectors=True):
@@ -67,7 +65,7 @@ def buildKernelCirculantMatrix(size, kernel, bandwidth=1.0):
 
 #uses the fft to compute the inverse of a circulant matrix, specified by the first column as input
 def circulantMatrixInverse(vector):
-    v_fft = fft(vector)
+    v_fft = scipy.fft(vector)
     size = vector.shape[0]
     array = np.zeros([size, size], dtype=np.complex_)
     for i in range(size):
@@ -78,7 +76,7 @@ def circulantMatrixInverse(vector):
 
 #uses the fft to compute the complex eigen values/vectors of a circulant matrix, specified by the first column as input
 def circulantMatrixEigen(vector):
-    v_fft = fft(vector)
+    v_fft = scipy.fft.fft(vector)
     size = vector.shape[0]
     array = np.zeros([size, size], dtype=np.complex_)
     for i in range(size):
@@ -100,7 +98,7 @@ def circulantMatrixEigen(vector):
 
 # This works and has been tested
 def symCirculantMatrixEigen(vector):
-    v_fft = np.real(fft(vector))
+    v_fft = np.real(scipy.fft.fft(vector))
 #    print("fft")
 #    print(v_fft)
     size = vector.shape[0]
@@ -182,6 +180,8 @@ class gaussian_model(nn.Module):
         self.log_signal_variance = nn.Parameter(torch.log(torch.tensor(signal_variance)))
         # this says whether or not you can use the FFT for time
         self.time_structured = time_structured
+        # for reporting purposes
+        self.measurements = stData.numel()
 
 # build and invert kernel matrix        
         self.update()
@@ -217,7 +217,7 @@ class gaussian_model(nn.Module):
                 self.time_coordinates,
                 torch.exp(self.log_time_length_scale)
                 ) + torch.eye(self.time_coordinates.size(0)) * JITTER
-            np.savetxt('temp_kernel_unstructured.csv', (temporal_kernel).detach().numpy(), delimiter = ';')
+            # np.savetxt('temp_kernel_unstructured.csv', (temporal_kernel).detach().numpy(), delimiter = ';')
             eigen_value_t, eigen_vector_t = torch.symeig(temporal_kernel, eigenvectors=True)
             eigen_vector_st = kronecker(eigen_vector_t, eigen_vector_s)
             eigen_value_st = kronecker(eigen_value_t.view(-1, 1), eigen_value_s.view(-1, 1)).view(-1)
@@ -313,7 +313,9 @@ class gaussian_model(nn.Module):
                 yPred = yPred.view(test_time_coordinates.size(0), test_space_coordinates.size(0)).transpose(-2, -1)
                 yVar = yVar.view(test_time_coordinates.size(0), test_space_coordinates.size(0)).transpose(-2, -1)
 
-            return yPred, yVar
+            status_string = str(self.measurements) + " measurements"
+            status = [status_string for i in range(test_time_coordinates.size(0))]
+            return yPred, yVar, status
             
     def negative_log_likelihood(self):
         nll = 0
@@ -347,5 +349,3 @@ class gaussian_model(nn.Module):
             loss.backward()
             optimizer.step()
             print('loss_nnl:', loss.item())
-
-# %%

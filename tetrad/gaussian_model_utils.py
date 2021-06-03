@@ -3,9 +3,9 @@ import pytz
 import numpy
 from tetrad import gaussian_model
 from tetrad import utils
-from tetrad.api_consts import *
 import torch
 import statistics
+import logging
 
 
 JANUARY1ST = datetime(2000, 1, 1, 0, 0, 0, 0, pytz.timezone('UTC'))
@@ -25,8 +25,12 @@ TIME_ARRAY_INDEX = 5
 ###################
 
 # some variables in binning and correcting data
-SENSOR_INTERPOLATE_DISTANCE = 5
+SENSOR_INTERPOLATE_DISTANCE = 6
 NUM_MINUTES_PER_BIN = 8
+# this is the percentage of sensors recording measurements within a time slice/bin before a warning is reported
+TIME_SLICE_MIN_SENSOR_RATE = 0.65
+# a general number for reporting warnings about sensors that fail to report, interpolate, etc.
+FRACTION_SIGNIFICANT_FAILS = 0.30
 
 
 def getTimeCoordinateBin(datetime, time_offset=0):
@@ -57,7 +61,7 @@ def createTimeVector(sensor_data, time_lo_bound = -1.0, time_hi_bound = -1.0):
     lowest_bin_number = None
 
     for datum in sensor_data:
-        this_time = datum[FIELD_MAP["TIMESTAMP"]]
+        this_time = datum['time']
 #  you only fill in the bin stuff for the dates that are in range
         if (not time_bounds) or ((this_time >= time_lo_bound) and (this_time <= time_hi_bound)):
             bin_number = getTimeCoordinateBin(this_time)
@@ -69,17 +73,14 @@ def createTimeVector(sensor_data, time_lo_bound = -1.0, time_hi_bound = -1.0):
 
 #  you only fill in the bin stuff for the dates that are in range
     for datum in sensor_data:
-        this_time = datum[FIELD_MAP["TIMESTAMP"]]
+        this_time = datum['time']
         if (not time_bounds) or ((this_time >= time_lo_bound) and (this_time <= time_hi_bound)):
             datum[TIME_COORDINATE_BIN_NUMBER_KEY] -= lowest_bin_number
 
     time_coordinates = [bin_number - lowest_bin_number for bin_number in time_coordinates]
-#    print("time1")
-#    print(time_coordinates)
     time_coordinates.sort()
-#    print("time2")
-#    print(time_coordinates)
     time_coordinates = numpy.expand_dims(numpy.asarray(time_coordinates), axis=1)
+    
 
     return time_coordinates, lowest_bin_number
 
@@ -89,34 +90,41 @@ def assignTimeData(sensor_data, device_location_map, time_offset, time_lo_bound 
 # This loads the device_location_map with a set of bins, and each bin contains all of the measurements associated with that bin and that device.  Later we will average these or choose one of them (median)
     time_bounds = not ( (time_lo_bound == -1.0) or (time_hi_bound == -1.0) )
     for datum in sensor_data:
-        this_time = datum[FIELD_MAP["TIMESTAMP"]]
+        this_time = datum['time']
         if (not time_bounds) or ((this_time >= time_lo_bound) and (this_time <= time_hi_bound)):
             bin_number = getTimeCoordinateBin(this_time) - time_offset
-            this_id = datum[FIELD_MAP["DEVICEID"]]
+            this_id = datum['ID']
             if not (bin_number in device_location_map[this_id][TIME_MAP_INDEX]):
-                device_location_map[this_id][TIME_MAP_INDEX].update({bin_number:{datum[FIELD_MAP["PM2_5"]]}})
-                tmp = datum[FIELD_MAP["PM2_5"]]
-                # print(f"new: {bin_number}: datum[FIELD_MAP[PM2_5]]: {tmp}")
+                device_location_map[this_id][TIME_MAP_INDEX].update({bin_number:{datum['PM2_5']}})
             else:
-                device_location_map[this_id][TIME_MAP_INDEX][bin_number].add(datum[FIELD_MAP["PM2_5"]])
-                tmp = datum[FIELD_MAP["PM2_5"]]
-                # print(f"add: {bin_nsumber}: datum[FIELD_MAP[PM2_5]]: {tmp}")
+                device_location_map[this_id][TIME_MAP_INDEX][bin_number].add(datum['PM2_5'])
+    # this is already done in createTimeVector() -- do we need this
+    # datum[TIME_COORDINATE_BIN_NUMBER_KEY] = bin_number
+
+    # for key in device_location_map.keys():
+    #     loc = device_location_map[key]
+    #     if loc[SPACE_COORD_INDEX] <= 5:
+    #         print(loc)
+    #         print(loc[SPACE_COORD_INDEX])
+    #         print(loc[UTM_X_INDEX])
+    #         print(loc[TIME_MAP_INDEX])
 
 
-# def createSpaceVector(sensor_data):
-#     for datum in sensor_data:
-#         if datum['ID'] not in device_location_map:
-#             device_location_map[datum['ID']] = (datum['utm_x'], datum['utm_y'], datum['Altitude'])
 
-#     space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
-#     for key in device_location_map.keys():
-#         loc = device_location_map[key]
-#         toadd = numpy.asarray([loc[0], loc[1], loc[2]])
-#         toadd = numpy.expand_dims(toadd, axis=0)
-#         space_coordinates = numpy.append(space_coordinates, toadd, axis=0)
-#         device_location_map[key] = space_coordinates.shape[0] - 1
+def createSpaceVector(sensor_data):
+    for datum in sensor_data:
+        if datum['ID'] not in device_location_map:
+            device_location_map[datum['ID']] = (datum['utm_x'], datum['utm_y'], datum['Altitude'])
 
-#     return space_coordinates, device_location_map
+    space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
+    for key in device_location_map.keys():
+        loc = device_location_map[key]
+        toadd = numpy.asarray([loc[0], loc[1], loc[2]])
+        toadd = numpy.expand_dims(toadd, axis=0)
+        space_coordinates = numpy.append(space_coordinates, toadd, axis=0)
+        device_location_map[key] = space_coordinates.shape[0] - 1
+
+    return space_coordinates, device_location_map
 
 # this builds up the first instance of the device_location_map
 # sucessive calls will process and fill in the time data
@@ -126,9 +134,9 @@ def createSpaceVector2(sensor_data, time_array_size):
 
     # the time array allows us to keep track of how many entries this sensor has within each time bin
     for datum in sensor_data:
-        if datum[FIELD_MAP['DEVICEID']] not in device_location_map:
+        if datum['ID'] not in device_location_map:
             # for the meaning of these entries, see the index set at top of file
-            device_location_map[datum[FIELD_MAP['DEVICEID']]] = [datum['utm_x'], datum['utm_y'], datum[FIELD_MAP['ELEVATION']], -1, {}, numpy.full((time_array_size), -1.0)]
+            device_location_map[datum['ID']] = [datum['utm_x'], datum['utm_y'], datum['Altitude'], -1, {}, numpy.full((time_array_size), -1.0)]
 
     space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
     for key in device_location_map.keys():
@@ -162,25 +170,46 @@ def saveMatrixToFile(matrix, filename):
 # goal is to fill in zero/bad elements in between two values
 # only do short distances, e.g.  1 > <  SENSOR_INTERPOLATE_DISTANCE (missing bins)
 def interpolateBadElements(matrix, bad_value = 0):
-    row_index = 0
+    num_interp_fails = 0
     for row in matrix:
-        row_index += 1
         prevValueIndex = None
+        this_fail = False
         for i in range(row.shape[0]):
             if row[i] != bad_value:
                 if prevValueIndex is None:
                     prevValueIndex = i
+                    # this takes care of the boundary at the beginning of the time sequence
+                    if (i > 0) and (i < SENSOR_INTERPOLATE_DISTANCE):
+                        row[0:i] = row[i]
                 else:
                     curValueIndex = i
                     distance = curValueIndex - prevValueIndex
-                    if (distance > 1) and (distance < SENSOR_INTERPOLATE_DISTANCE):
+                    if (distance > 1):
+                        if (distance < SENSOR_INTERPOLATE_DISTANCE):
                         # interpolate zeros between prev and cur
-                        terp = numpy.interp(range(prevValueIndex + 1, curValueIndex), [prevValueIndex, curValueIndex], [row[prevValueIndex], row[curValueIndex]])
-                        row[prevValueIndex + 1:curValueIndex] = terp
-                    prevValueIndex = curValueIndex
+                            terp = numpy.interp(range(prevValueIndex + 1, curValueIndex), [prevValueIndex, curValueIndex], [row[prevValueIndex], row[curValueIndex]])
+                            row[prevValueIndex + 1:curValueIndex] = terp
+                            prevValueIndex = curValueIndex
+                        else:
+                            this_fail = True
+        if this_fail:
+            num_interp_fails += 1
+        # take care of bad values and end of time range
+        if row[-1] == bad_value:
+            curValueIndex = row.shape[0]-1
+            if (prevValueIndex != None):
+                distance = curValueIndex - prevValueIndex
+                if (distance < SENSOR_INTERPOLATE_DISTANCE):            
+                    row[prevValueIndex+1: curValueIndex+1] = row[prevValueIndex]
+            else:
+                logging.debug("got full row of bad indices?" + str(row))
+        if (float(num_interp_fails)/matrix.shape[0]) > FRACTION_SIGNIFICANT_FAILS:
+            logging.warn("got %d interp failures out of %d sensors", num_interp_fails, matrix.shape[0])
+            # saveMatrixToFile(matrix, 'failed_interp_matrix.txt')            
+                
+        
 
-
-def trimEdgeZeroElements(matrix, time_coordinates):
+def trimBadEdgeElements(matrix, time_coordinates, bad_value=-1):
     # record index of edge values for each row
     firstValues = {}
     lastValues = {}
@@ -188,10 +217,10 @@ def trimEdgeZeroElements(matrix, time_coordinates):
         inverse_col_index = -1 - col_index
         for row_index in range(matrix.shape[0]):
             if row_index not in firstValues:
-                if matrix[row_index][col_index] != 0:
+                if matrix[row_index][col_index] != bad_value:
                     firstValues[row_index] = col_index
             if row_index not in lastValues:
-                if matrix[row_index, inverse_col_index] != 0:
+                if matrix[row_index, inverse_col_index] != bad_value:
                     lastValues[row_index] = inverse_col_index
         if len(firstValues) == matrix.shape[0] and len(lastValues) == matrix.shape[0]:
             break
@@ -208,8 +237,12 @@ def trimEdgeZeroElements(matrix, time_coordinates):
 # if a sensor doesn't have enough data then it gets taken out of calculations
 def removeBadSensors(data_matrix, space_coordinates, ratio):
     toKeep = [(numpy.count_nonzero(row != -1.0) / len(row)) > ratio for row in data_matrix]
-    # print("in remove bad data")
-    # print(toKeep)
+    fraction_removed = (1.0 - float(numpy.sum(toKeep))/float(data_matrix.shape[0]))
+    if (fraction_removed > FRACTION_SIGNIFICANT_FAILS):
+        logging.warn("Removed %f percent of sensors due to insufficient measurements", 100.0*fraction_removed)
+        logging.debug("time slices in remove data to keep " + str(toKeep))
+    else:
+        logging.info("Removed %f percent of sensors due to insufficient measurements", 100.0*fraction_removed)
     data_matrix = data_matrix[toKeep]
     space_coordinates = space_coordinates[toKeep]
     return data_matrix, space_coordinates
@@ -221,7 +254,7 @@ def getSensorIDByUTMCoords(sensor_data, utm_x, utm_y):
     target_sensor_id = -1
     for datum in sensor_data:
         if utm_x==datum['utm_x'] and utm_y==datum['utm_y']:
-            target_sensor_id = datum[FIELD_MAP['DEVICEID']]
+            target_sensor_id = datum['ID']
     return target_sensor_id
 
 # for debuging to check raw data against matrix data
@@ -233,22 +266,22 @@ def setupDataMatrix(sensor_data, space_coordinates, time_coordinates, device_loc
 #    data_matrix = numpy.zeros(shape=(space_coordinates.shape[0], time_coordinates.shape[0]))
     shape=(space_coordinates.shape[0], time_coordinates.shape[0])
     data_matrix = numpy.full(shape, -1.0)
-    # print("space-time shape")
-    # print(space_coordinates.shape)
-    # print(time_coordinates.shape)
     for datum in sensor_data:
         date_index = numpy.nonzero(time_coordinates == datum[TIME_COORDINATE_BIN_NUMBER_KEY])[0][0]
-        location_index = device_location_map[datum[FIELD_MAP['DEVICEID']]]
+        location_index = device_location_map[datum['ID']]
         # bound sensor data below by 0
-        data_matrix[location_index][date_index] = datum[FIELD_MAP['PM2_5']] if datum[FIELD_MAP['PM2_5']] >= 0 else 0
+        data_matrix[location_index][date_index] = datum['PM2_5'] if datum['PM2_5'] >= 0 else 0
 
 #    saveMatrixToFile(data_matrix, '1matrix.txt')
     interpolateBadElements(data_matrix,-1)
 #    saveMatrixToFile(data_matrix, '2interpolated.txt')
     data_matrix, space_coordinates = removeBadSensors(data_matrix, space_coordinates, 0.6)
 #    saveMatrixToFile(data_matrix, '3matrix_removed_bad.txt')
-#    data_matrix, time_coordinates = trimEdgeZeroElements(data_matrix, time_coordinates)
-#    saveMatrixToFile(data_matrix, '4matrixtrimmed.txt')
+
+#  This is important because bins on either end of the time range might not have enough measurements
+#    data_matrix, time_coordinates = trimBadEdgeElements(data_matrix, time_coordinates)
+
+    #    saveMatrixToFile(data_matrix, '4matrixtrimmed.txt')
 
 # for debugging report id of last sensor in matrix - to get raw data
     # print("ID of last sensor is")
@@ -264,25 +297,8 @@ def setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_lo
     data_shape=(space_coordinates.shape[0], time_coordinates.shape[0])
     data_matrix = numpy.full(data_shape, -1.0)
 
-    # THIS IS THE OLD METHOD -- STILL USED ABOVE
-    # for datum in sensor_data:
-    #     date_index = numpy.nonzero(time_coordinates == datum[TIME_COORDINATE_BIN_NUMBER_KEY])[0][0]
-    #     location_index = device_location_map[datum['ID']]
-    #     # bound sensor data below by 0
-    #     data_matrix[location_index][date_index] = datum['PM2_5'] if datum['PM2_5'] >= 0 else 0
-
-    # print("setupdatamatrix")
-    # for key in device_location_map.keys():
-    #     loc = device_location_map[key]
-    #     if loc[SPACE_COORD_INDEX] <= 5:
-    #         print(loc)
-    #         print(loc[SPACE_COORD_INDEX])
-    #         print(loc[UTM_X_INDEX])
-    #         print(loc[TIME_MAP_INDEX])
 
 #    print(time_coordinates.shape)
-    # print("data_matrix1:")
-    # print(data_matrix)
     for key in device_location_map.keys():
         device = device_location_map[key]
         space_index = device[SPACE_COORD_INDEX]
@@ -299,22 +315,30 @@ def setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_lo
 #        for i in range(time_coordinates.shape[0]):
 #            data_matrix[space_index,i] = time_data_array[i,0]
         data_matrix[space_index,:] = time_data_array
-#    saveMatrixToFile(data_matrix, '1matrix.txt')
-#    numpy.savetxt('1matrix.csv', data_matrix, delimiter=',')
-    interpolateBadElements(data_matrix, -1)
-#    saveMatrixToFile(data_matrix, '2interpolated.txt')
-#    numpy.savetxt('2interpolated.csv', data_matrix, delimiter=',')
-    data_matrix, space_coordinates = removeBadSensors(data_matrix, space_coordinates, 0.75)
-#    saveMatrixToFile(data_matrix, '3matrix_removed_bad.txt')
-#    numpy.savetxt('3removed_bad.csv', data_matrix, delimiter=',')
-    # fill in missing readings using the average values for each time slice
-    data_matrix = fillInMissingReadings(data_matrix, -1)
-#    saveMatrixToFile(data_matrix, '4matrix_filled_bad.txt')
-#    numpy.savetxt('4filled_bad.csv', data_matrix, delimiter=',')
-    # fill in missing readings using the average values for each time slice
 
-#    data_matrix, time_coordinates = trimEdgeZeroElements(data_matrix, time_coordinates)
-#    saveMatrixToFile(data_matrix, '4matrixtrimmed.txt')
+# check to make sure we have data        
+    if (data_matrix.size > 0):
+        # saveMatrixToFile(data_matrix, '1matrix.txt')
+        # numpy.savetxt('1matrix.csv', data_matrix, delimiter=',')
+        interpolateBadElements(data_matrix, -1)
+        # saveMatrixToFile(data_matrix, '2interpolated.txt')
+        # numpy.savetxt('2interpolated.csv', data_matrix, delimiter=',')
+        data_matrix, space_coordinates = removeBadSensors(data_matrix, space_coordinates, 0.75)
+        # saveMatrixToFile(data_matrix, '3matrix_removed_bad.txt')
+        # numpy.savetxt('3removed_bad.csv', data_matrix, delimiter=',')
+        # fill in missing readings using the average values for each time slice
+
+        #  This is important because bins on either end of the time range might not have enough measurements
+        #  This is now taken care of again.  Once full tested, remove this.
+        #  data_matrix, time_coordinates = trimBadEdgeElements(data_matrix, time_coordinates)
+        #  saveMatrixToFile(data_matrix, '4matrixtrimmed.txt')
+        #  numpy.savetxt('4matrixtrimmed.csv', data_matrix, delimiter=',')
+
+        # fill in missing readings using the average values for each time slice
+        data_matrix = fillInMissingReadings(data_matrix, -1)
+        # saveMatrixToFile(data_matrix, '4matrix_filled_bad.txt')
+        # numpy.savetxt('4filled_bad.csv', data_matrix, delimiter=',')
+
 
 # for debugging report id of last sensor in matrix - to get raw data
     # print("ID of last sensor is")
@@ -327,12 +351,13 @@ def setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_lo
 
 #####  fill in missing values with time averages.
 # keep an eye out for time slices with too few good values and fill those in (print warning)
-def fillInMissingReadings(data_matrix, bad_value = 0):
+def fillInMissingReadings(data_matrix, bad_value = 0.):
     data_mask = (data_matrix != bad_value)
     data_counts = numpy.sum(data_mask, 0)
-    if (float(numpy.min(data_counts))/float(data_matrix.shape[0]) < 0.75):
-        print("WARNING: got time slice with too few data sensor values with value " + str(float(numpy.min(data_counts))/float(data_matrix.shape[0])) + " and index "  + str(numpy.nonzero((data_counts/data_matrix.shape[0]) < 0.75)))
-    time_averages = numpy.divide(numpy.sum(numpy.multiply(data_matrix,data_mask), 0), data_counts)
+    if (float(numpy.min(data_counts))/float(data_matrix.shape[0]) < TIME_SLICE_MIN_SENSOR_RATE):
+        logging.warn("WARNING: got time slice with too few data sensor values with value " + str(float(numpy.min(data_counts))/float(data_matrix.shape[0])) + " and index "  + str(numpy.nonzero((data_counts/data_matrix.shape[0]) < 0.75)))
+    sum_tmp = numpy.sum(numpy.multiply(data_matrix,data_mask), 0)
+    time_averages = numpy.divide(sum_tmp, data_counts, out=numpy.zeros_like(sum_tmp), where=(data_counts!=0))
     for idx in numpy.ndindex(data_matrix.shape):
         if data_matrix[idx] == bad_value:
             data_matrix[idx] = time_averages[idx[1]]
@@ -347,24 +372,16 @@ def fillInMissingReadings(data_matrix, bad_value = 0):
 
 # this fills in the PM2.5 values for each sensor over an array of times into the correct field of the device location map -- which holds a lot of stuff about each sensor
 def computeTimeArrays(sensor_data, device_location_map, time_coordinates):
-    try:
-        for key in device_location_map.keys():
-            device = device_location_map[key]
-            for i in range(time_coordinates.shape[0]):
+    #    print(time_coordinates.shape)
+    for key in device_location_map.keys():
+        device = device_location_map[key]
+        for i in range(time_coordinates.shape[0]):
             # this is a set of measurements for this device in this time bin -- create a list and find median
             # time offset is needed because of the way the location_map stores time values -- it creates them before the mininum value is set.  This should be cleaned up later
-                measurement_set = (device[TIME_MAP_INDEX]).get(time_coordinates[i][0], -1)
-                # print(f'time_coordinates[{i}][0]: {time_coordinates[i][0]}')
-                if (measurement_set != -1) and (len(measurement_set) > 0):
-                    device[TIME_ARRAY_INDEX][i] = statistics.median(list(measurement_set))
-                    # else there is no data and we leave the value at the initialized value above for later processing
-    except Exception as e:
-        print(key)
-        print(device)
-        print(time_coordinates.shape[0])
-        print(measurement_set)
-        raise e
-
+            measurement_set = (device[TIME_MAP_INDEX]).get(time_coordinates[i][0], -1)
+            if (measurement_set != -1) and (len(measurement_set) > 0):
+                device[TIME_ARRAY_INDEX][i] = statistics.median(list(measurement_set))
+                # else there is no data and we leave the value at the initialized value above for later processing
 
 # look a the time arrays and flat sensors with too much missing data for removal
 # not needed because taken care of in the dataMatrix routine
@@ -379,39 +396,35 @@ def createModel(sensor_data, latlon_length_scale, elevation_length_scale, time_l
 # this builds up the first instance of the device_location_map
 # sucessive calls will process and fill in the time data
     space_coordinates, device_location_map = createSpaceVector2(sensor_data, time_coordinates.shape[0])
-    # print("space_coordinates A:")
-    # print(space_coordinates)
-    # print("device_location_map:")
-    # print(device_location_map)
     assignTimeData(sensor_data, device_location_map, time_offset, time_lo_bound, time_hi_bound)
     computeTimeArrays(sensor_data, device_location_map, time_coordinates)
 #    data_matrix, space_coordinates, time_coordinates = setupDataMatrix(sensor_data, space_coordinates, time_coordinates, device_location_map)
     data_matrix, space_coordinates, time_coordinates = setupDataMatrix2(sensor_data, space_coordinates, time_coordinates, device_location_map)
 
-    # print("space_coordinates:")
-    # print(space_coordinates)
-    # print("time_coordinates:")
-    # print(time_coordinates)
+    if (data_matrix.size > 0):
+        space_coordinates = torch.tensor(space_coordinates)     # convert data to pytorch tensor
+        time_coordinates = torch.tensor(time_coordinates)   # convert data to pytorch tensor
+        data_matrix = torch.tensor(data_matrix)   # convert data to pytorch tensor
 
-    space_coordinates = torch.tensor(space_coordinates)     # convert data to pytorch tensor
-    time_coordinates = torch.tensor(time_coordinates)   # convert data to pytorch tensor
-    data_matrix = torch.tensor(data_matrix)   # convert data to pytorch tensor
+        model = gaussian_model.gaussian_model(space_coordinates, time_coordinates, data_matrix,
+                                                  latlon_length_scale=float(latlon_length_scale),
+                                                  elevation_length_scale=float(elevation_length_scale),
+                                                  time_length_scale=float(time_length_scale),
+                                                  noise_variance=36.0, signal_variance=400.0, time_structured=False)
+        status = ""
+    else:
+        model = None
+        status = "0 measurements"
+        
+    # if save_matrices:
+        # numpy.savetxt('space_coords.csv', space_coordinates, delimiter=',')
+        # numpy.savetxt('time_coords.csv', time_coordinates, delimiter=',')
+        # numpy.savetxt('PM_data.csv', data_matrix, delimiter=',')
+        # numpy.savetxt('latlon_scale.csv', numpy.full([1], latlon_length_scale), delimiter=',')
+        # numpy.savetxt('time_scale.csv', numpy.full([1], time_length_scale), delimiter=',')
+        # numpy.savetxt('elevation_scale.csv', numpy.full([1], elevation_length_scale), delimiter=',')
 
-    model = gaussian_model.gaussian_model(space_coordinates, time_coordinates, data_matrix,
-                                          latlon_length_scale=float(latlon_length_scale),
-                                          elevation_length_scale=float(elevation_length_scale),
-                                          time_length_scale=float(time_length_scale),
-                                          noise_variance=36.0, signal_variance=400.0)
-
-    if save_matrices:
-        numpy.savetxt('space_coords.csv', space_coordinates, delimiter=',')
-        numpy.savetxt('time_coords.csv', time_coordinates, delimiter=',')
-        numpy.savetxt('PM_data.csv', data_matrix, delimiter=',')
-        numpy.savetxt('latlon_scale.csv', numpy.full([1], latlon_length_scale), delimiter=',')
-        numpy.savetxt('time_scale.csv', numpy.full([1], time_length_scale), delimiter=',')
-        numpy.savetxt('elevation_scale.csv', numpy.full([1], elevation_length_scale), delimiter=',')
-
-    return model, time_offset
+    return model, time_offset, status
 
 
 # Ross changed this to do the formatting in the api_routes call instead of here
@@ -450,18 +463,17 @@ def estimateUsingModel(model, lats, lons, elevations, query_dates, time_offset, 
     query_dates2 = numpy.transpose(numpy.asarray([time_coordinates]))
     query_time = torch.tensor(query_dates2)
 
-    if save_matrices:
-        numpy.savetxt('query_space_coords.csv', space_coordinates, delimiter=',')
-        numpy.savetxt('query_time_coords.csv', query_time, delimiter=',')
+    # if save_matrices:
+        # numpy.savetxt('query_space_coords.csv', space_coordinates, delimiter=',')
+        # numpy.savetxt('query_time_coords.csv', query_time, delimiter=',')
     
-    yPred, yVar = model(query_space, query_time)
-    yPred = yPred.numpy()
+    yPred, yVar, status = model(query_space, query_time)
+    yPred = numpy.maximum(yPred.numpy(), 0.0)
     yVar = yVar.numpy()
-#    yPred = [float(value) for value in yPred]
-#    yVar = [float(value) for value in yVar]
+    if numpy.amin(yVar) < 0.0:
+        logging.warn("Got negative values in variance, suggesting a numerical problem")
 
-#    print(yPred)
-    return yPred, yVar
+    return yPred, yVar, status
 
 # 
 # this kind of formatting of data is now done in the API (api_routes), because it will get formatted differently for different types of queries. 

@@ -34,9 +34,4 @@ README.md
 get-pip.py 
 tox.ini 
 
-gcp-tasks
-crt
-tools
-gcp-tasks
-BigQuery
-*.mat
+aqandu.env
