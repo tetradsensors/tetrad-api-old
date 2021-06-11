@@ -16,114 +16,15 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
-service: backend
-
-runtime: python38
-
-instance_class: F2
-
-entrypoint: gunicorn -t 300 -b :$PORT main:app
+runtime: python37
+instance_class: F4_1G
 
 handlers:
 - url: /static
-  static_dir: tetrad/static
+  static_dir: aqandu/static
   secure: always
 
 - url: /.*
   secure: always
   redirect_http_response_code: 301
   script: auto
- 
-- url: /favicon\.ico
-  secure: always
-  static_files: static/img/favicon.ico
-  upload: static/img/favicon\.ico 
-
-env_variables:
-  GS_BUCKET: "tetrad_server_files"
-  GS_REGION_INFO_FILENAME: "region_info.json"
-  FLASK_APP: "main.py"
-  FLASK_ENV: "development"
-  BQ_DATASET_TELEMETRY: "telemetry"
-  BQ_DATASET_META: "meta"
-  BQ_TABLE_META_DEVICES: "devices"
-  BQ_TABLE_TELEMETRY: "telemetry"
-  # BQ_TABLE_SLC:    "slc_ut"
-  # BQ_TABLE_CHATT:  "chatt_tn"
-  # BQ_TABLE_KC:     "kc_mo"
-  # BQ_TABLE_CLEV:   "clev_oh"
-  BQ_LABEL_BADGPS: "badgps"
-  BQ_LABEL_GLOBAL: "global"
-  FIELD_NN:   "Nickname"
-  FIELD_TS:   "Timestamp"
-  FIELD_ID:   "DeviceID"
-  # FIELD_LAT:  "Latitude"
-  # FIELD_LON:  "Longitude"
-  FIELD_GPS:  "GPS"
-  FIELD_ELE:  "Elevation"
-  FIELD_PM1:  "PM1"
-  FIELD_PM2:  "PM2_5"
-  FIELD_PM10: "PM10"
-  FIELD_TEMP: "Temperature"
-  FIELD_HUM:  "Humidity"
-  FIELD_RED:  "MicsRED"
-  FIELD_NOX:  "MicsNOX"
-  FIELD_HTR:  "MicsHeater"
-  FIELD_FLG:  "Flags"
-  FIELD_RSSI: "RSSI"
-  FIELD_SRC:  "Source"
-  FIELD_PMS:  "PMSModel"
-  FIELD_LBL:  "Label"
-  FIELD_PMRAW: "PM2_5_Raw"
-  Q_SLC:      "SLC"
-  Q_CHATT:    "CHATT"
-  Q_CLEV:     "CLEV"
-  Q_KC:       "KC"
-  Q_GLOBAL:   "GLOBAL"
-  Q_BADGPS:   "BADGPS"
-  Q_ALL:      "ALL"
-  Q_ALLGPS:   "ALLGPS"
-  Q_TS:       "TIMESTAMP"
-  Q_ID:       "DEVICEID"
-  Q_GPS:      "GPS"
-  Q_LAT:      "LATITUDE"
-  Q_LON:      "LONGITUDE"
-  Q_ELE:      "ELEVATION"
-  Q_PM1:      "PM1"
-  Q_PM2:      "PM2_5"
-  Q_PM10:     "PM10"
-  Q_TEMP:     "TEMPERATURE"
-  Q_HUM:      "HUMIDITY"
-  Q_RED:      "MICSRED"
-  Q_NOX:      "MICSNOX"
-  Q_HTR:      "MICSHEATER"
-  Q_RSSI:     "RSSI"
-  Q_PMRAW:    "PM_RAW"
-  Q_SRC:      "SOURCE"
-  Q_LBL:    "LABEL"
-  PM_BAD_THRESH:  500
-  PM_BAD_FLAG:    -1
-  TEMP_BAD_FLAG:  -1000
-  HUM_BAD_FLAG:   -1000
-  # BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
-  CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
-  # ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"
-  # ELEV_MAP_SLC_FILENAME: "model_files/slc.mat"
-  # ELEV_MAP_CHATT_FILENAME: "model_files/chatt.mat"
-  # ELEV_MAP_CLEV_FILENAME: "model_files/clev.mat"
-  # ELEV_MAP_KC_FILENAME: "model_files/kc.mat"
-  # LENGTH_SCALES_FILENAME: "model_files/length_scales.csv"
-  FB_CONFIG_SECRET: "firebase_config"
-  FB_ADMIN_CONFIG_SECRET: "firebase_admin_config"
-  FB_AUTH_HEADER: "Authorization"
-  FB_AIRU_UID: "FNlnrFd85MMTRcVudXcc97eLL3v2"
-  FS_USER_GROUPS_COLLECTION: "user_groups"
-  FS_USER_GROUPS_UIDS_KEY: "uids"
-  FS_USER_GROUPS_AIRUV2: "airuv2"
-  GS_BUCKET_OTA: "airuv2_firmware"
-  SPACE_KERNEL_FACTOR_PADDING: 2.0
-  TIME_KERNEL_FACTOR_PADDING: 3.0
-  DOMAIN_NAME: "tetradsensors.com"
-  SUBDOMAIN_API: "api"
-  SUBDOMAIN_OTA: "ota"
-  

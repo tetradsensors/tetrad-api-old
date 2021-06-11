@@ -33,3 +33,5 @@ local
 .gitsecret/keys/random_seed
 !*.secret
 *.mat
+# Model Generated Files
+*.txt

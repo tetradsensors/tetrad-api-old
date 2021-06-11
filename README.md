@@ -1,5 +1,5 @@
-# Tetrad Backend
-These are instructions for setting up the Python Virtual Environment and frontend of the US Ignite site. This project was larely adapted from [AQ&U](https://github.com/aqandu/aqandu_live_site). We use Python 3 at its latest version (on GCP) which, at the time of writing, is 3.8. These instructions assume that you have python 3.8 and pip installed locally.
+# AQandU
+These are instructions for setting up the Python Virtual Environment and frontend of AQandU. We use Python 3 at its latest version (on GCP) which, at the time of writing, is 3.7. These instructions assume that you have python 3.7 and pip installed locally.
 
 ## Table of Contents
 
@@ -10,137 +10,178 @@ These are instructions for setting up the Python Virtual Environment and fronten
   
 ## Development Environment Quick Start
 
-This project uses [virtualenv](https://virtualenv.pypa.io/en/latest/installation.html) to create a new python 3.8 interpreter specific to this project. Once virtualenv is installed, you can create a new virtual environment. On Mac OSX the command will look similar to the following:
+This project uses `pipenv` for python package version management, so make sure you have that installed. If you need instructions for setting it up, check [here](https://pipenv.pypa.io/en/latest/install/#installing-pipenv). Once  `pipenv` is installed, you can set up a virtual environment and install all python dependencies with `pipenv install`.
 
-```bash
-virtualenv ~/.ve/p3.8 --python 3.8
-```
-After creation, the environment can be loaded:
-```bash
-source ~/.ve/p3.8/bin/activate
-```
-Now the correct packages can be installed:
-```bash
-pip install -r requirements.txt
-```
-Next we can generate the flask assets with `flask assets build`. Then you may launch the application with `python main.py`. 
+Now, copy the .env.prod to .env using `cp .env.prod .env` to use the bigquery database. You may need to acquire this file from an admin.
+
+Next, we need to generate some flask assets with `pipenv run build-assets`. Then you may launch the application with `pipenv run serve`.
 
 
 ## Deploying in Production
 
-To deploy the application, you have to use the command line and the gcloud tools. Once you have the production config (from Tom) and you've set up gcloud cli with the correct default project, run the following commands:
+To deploy the application, you have to use the command line and the gcloud tools. Once you have the production config (from Jack or another admin) and you've set up gcloud cli with the correct default project, run the following commands:
 
 ```
+cp config.production.py config.py
 gcloud app deploy app.yaml
-```
-
-For additional information, include the `verbosity` flag:
-
-```
-gcloud app deploy --verbosity debug app.yaml
-```
-
-Also, a fuller command:
-
-```bash
-gcloud app deploy --appyaml app.yaml --verbosity debug --no-cache --promote
 ```
 
 This will start building the containers that serve the website. You can check for a successful deployment from the app engine versions dashboard in GCP. The app usually builds and deploys within a few minutes, but sometimes, Google can be a little slow with the building.
 
-**NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using 
+**NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.
 
-```bash
-gcloud config set app/cloud_build_timeout 1200
+# AQandU
+These are instructions for setting up the Python Virtual Environment and frontend of AQandU. We use Python 3 at its latest version (on GCP) which, at the time of writing, is 3.7. These instructions assume that you have python 3.7 and pip installed locally.
+
+## Table of Contents
+
+1. [Development Environment Quick Start](#development-environment-quick-start)
+1. [Deploying In Production](#deploying-in-production)
+1. [Route Documentation](#route-documentation)
+
+  
+## Development Environment Quick Start
+
+This project uses `pipenv` for python package version management, so make sure you have that installed. If you need instructions for setting it up, check [here](https://pipenv.pypa.io/en/latest/install/#installing-pipenv). Once  `pipenv` is installed, you can set up a virtual environment and install all python dependencies with `pipenv install`.
+
+Now, copy the .env.prod to .env using `cp .env.prod .env` to use the bigquery database. You may need to acquire this file from an admin.
+
+Next, we need to generate some flask assets with `pipenv run build-assets`. Then you may launch the application with `pipenv run serve`.
+
+
+## Deploying in Production
+
+To deploy the application, you have to use the command line and the gcloud tools. Once you have the production config (from Jack or another admin) and you've set up gcloud cli with the correct default project, run the following commands:
+
+```
+cp config.production.py config.py
+gcloud app deploy app.yaml
 ```
 
------------------
+This will start building the containers that serve the website. You can check for a successful deployment from the app engine versions dashboard in GCP. The app usually builds and deploys within a few minutes, but sometimes, Google can be a little slow with the building.
 
-## Tom's Notes
+**NOTE**: If you're getting `Error Response: [4] DEADLINE_EXCEEDED` then you need to increase the timeout for the build to 20 minutes using `gcloud config set app/cloud_build_timeout 1200`.
 
-### Flask
-- Logging can be used, but the API must be enabled. Then the service account (`tetrad-296715@appspot.gserviceaccount.com`) needs the permissions: `Logging Admin`
-- `import logging`
-  - `logging.debug('This is a debug message')`
-  - `logging.info('This is an info message')`
-  - `logging.warning('This is a warning message')`
-  - `logging.error('This is an error message')`
-  - `logging.critical('This is a critical message')`
-- `@ingroup(<group[s] [String/List]>)` decorator: Group or groups which can run this route. See "Firestore" for more details
+## Route Documentation 
 
-### Firebase
-- Create new project in [Firebase](https://console.firebase.google.com), which comes from your GCP project
-- `Authentication`: Enable Email/Password, Google
-- "Public-facing project name": `Tetrad Sensor Networks, LLC`
-- Download the `Firebase Config`JSON
-  - In Firebase: create a web app, then Settings -> General -> Web App -> Firebase SDK snippet (Config) -> copy and paste to JSON file and reformat as a valid JSON object.
-- `apiKey` from `fbconfig.json` is in the URL to get a session token for a user. Will only work if attached to a valid service account (which GAE instances are, by default).
-- `fbconfig.json` is stored in [Google Secret Manager](https://console.cloud.google.com/security/secret-manager?project=tetrad-296715&folder=&organizationId=) as `firebase_config`.
-- Once you have a JWT token, add it to the the `Authentication` Header when you make your request
-- All API endpoints use HTTP `POST`, and require the `Authentication` header, so they will not work through the browser's address input. 
+There are several routes set up for accessing the data. Here are the names, allowed methods, parameters, and descriptions:
 
-### Firestore
-- Collection `user_groups`: Each document is a group (name of document)
-  - Group (document) names: `airuv2`, `admin`, `slc`, `chatt`, `ks`, `clev`
-  - Field key `uids` is array of Firebase User UIDs with access in this group
+- Name:`/api/rawDataFrom`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+           `id`: A sensor id.  
+           `sensor_source`: A sensor source. One of ["AirU", "DAQ", "PurpleAir", "all"].  
+           `start`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+           `end`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+  - Description: Returns the raw, unaggregated data for a sensor. This is the data shown on the timeline view at the bottom of the main page.
+  - Return: A JSON response that looks like {data: [], tags: []} where the data Array is an Object[] where each Object has the following keys (PM2_5, time).
+  - Example:
+    ```
+    curl '127.0.0.1:8080/api/rawDataFrom?id=M9884E31FEBEE&sensorSource=AirU&start=2020-07-06T22:14:00Z&end=2020-07-07T22:14:00Z'
+    ```
 
-### Secret Manager
-- First, enable the API
-- Add a new file:
-```bash
-gcloud secrets create "secret_name_on_server" --data-file="/path/to/file"
-```
-- Update GAE service account permissions: `Secret Manager Secret Accessor`
+- Name:`/api/liveSensors`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+           `sensor_source`: A sensor source. One of ["AirU", "DAQ", "PurpleAir", "all"].  
+  - Description: Returns data from either all live sensors or all live sensors from one source. 
+  - Return: A JSON response that looks like [] where the Array is an Object[] where each Object has the following keys (ID, Latitude, Longitude, time, PM2_5, SensorModel, SensorSource).
+  - Example:
+    ```
+    curl '127.0.0.1:8080/api/liveSensors?sensorSource=PurpleAir'
+    ```
 
-### Service Accounts
-- Default app engine service account is used to validate all APIs. `tetrad-296715@appspot.gserviceaccount.com`
+- Name:`/api/timeAggregatedDataFrom`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+           `id`: A sensor id.  
+           `sensor_source`: A sensor source. One of ["AirU", "DAQ", "PurpleAir", "all"].  
+           `start`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+           `end`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+           `function`: One of ["mean", "min", "max"], which correspond to the SQL functions AVG(), MIN(), and MAX(), respectively.
+           `timeInterval`: Integer number of minutes between each aggregation. E.g. 5 will give the aggregated value every 5 minutes.  
+  - Description: Returns data from either all live sensors or all live sensors from one source, aggregated as mean, min, or max, by a defined time interval in minutes.
+  - Return: A JSON response that looks like {data: [], tags: []} where the data Array is an Object[] where each Object has the following keys (PM2_5, time).
+  - Example:
+    ```
+    curl '127.0.0.1:8080/api/timeAggregatedDataFrom?id=M9884E31FEBEE&sensorSource=AirU&start=2020-07-04T22:14:00Z&end=2020-07-07T22:14:00Z&function=mean&timeInterval=5'
+    ```
 
-### BigQuery
+- Name:`/api/request_model_data`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+           `lat`: Latitude.  
+           `lon`: Longitude.  
+           `radius`: radius around lat, lon in degrees.  
+           `start_date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+           `end_date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".
+  - Description: Get model data for the estimates route.
+  - Return: Array of Objects with keys (ID, Latitude, Longitude, time, PM2_5, SensorModel, SensorSource)
+  - Example:
+    ```
+    curl '127.0.0.1:8080/api/request_model_data?lat=40.7688&lon=-111.8462&radius=1&start_date=2020-06-30T00:00:00Z&end_date=2020-07-01T00:01:00Z'
+    ```
+
+- Name:`/api/getEstimatesForLocation`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+           `lat`: Latitude.  
+           `lon`: Longitude.  
+           `estimatesrate`: integer number of estimates per hour.  
+           `start_date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+           `end_date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".
+  - Description: Generate estimated pm2.5 for arbitrary locations downtown SLC.
+  - Return: Array of Objects with keys (Elevation, Latitude, Longitude, PM2_5, datetime, variance).
+  - Example:
+    ```
+    curl
+    '127.0.0.1:8080/api/getEstimatesForLocation?lat=40.7688&lon=-111.8462&estimatesrate=0.5&start_date=2020-06-30T00:00:00Z&end_date=2020-07-01T00:01:00Z'
+    ```
 
 
-### App Engine
-- Can attach a service to a subdomain through the `dispatch.yaml` file
-- in `app.yaml` include line: `service: <service-name>` to create a named service
-- There is a `default` service running. It's not possible to delete this service because GAE requires it internally. I've deployed an empty project to the service in a  `Standard Environment` with no web server, so it's impossible to communicate with this service. It's domain is `tetrad-296715.wm.r.appspot.com`, which is given automatically by GAE to the default service, and this domain cannot be changed. 
-- GAE will automatically cache file responses if you don't include an `Authorization` header
+- Name:`/api/getEstimatesForLocations`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+           `lat`: Latitude1,Latitude2,....  
+           `lon`: Longitude1,Longitude2,....  
+           `estimatesrate`: interval (in hours) between estimates.  
+           `start_date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
+           `end_date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".
+  - Description: Generate estimated pm2.5 for arbitrary lists of locations
+    downtown SLC returned as array with size based on # of locations given.
+  - Return: Array of Objects with keys (Elevation, Latitude, Longitude, PM2_5, datetime, variance).
+  - Example:
+    ```
+    curl
+    '127.0.0.1:8080/api/getEstimatesForLocation?lat=40.7688,40.7698&lon=-111.8462,-111.8472&estimatesrate=0.5&start_date=2020-06-30T00:00:00Z&end_date=2020-07-01T00:01:00Z'
+    ```
 
-### Google Cloud Functions
+- Name:`/api/getEstimateMap`
+  - Allowed Methods: `GET`
+  - Parameters:
+      - Required:  
+			`lat_lo`: Latitude.
+			`lat_hi`: Latitude.
+			`lon_lo`: Longitude.
+			`lon_hi`: Longitude.
+			`lon_size`: Integer.
+			`lon_size`: Integer.
+			`date`: A datetime string in the format "%Y-%m-%dT%H:%M:%SZ".  
 
-
-### SSL & Load Balancer
-- SSL certificates are managed by Google, using Let's Encrpyt as the Certificate Authority. Certificates are auto-renewing. 
-- If we want/need to add a load balancer, I think we need to do custom SSL certs.
-- Subdomain of `ota.tetradsensors.com` holds routes for airu file download, namely new certificates and firmware updates. 
-- In GAE, `ota.tetradsensors.com` was registered. "Disable managed security" was selected. Custom SSL Certificate was created with procedure outlined by Espressif in the project `esp-idf/examples/system/ota/README.md`. The procedure is as follows:
-
-```bash
-openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 3650 -node
-```
-  - Country Name (2 letter code) []:`US`
-  - State or Province Name (full name) []:`Utah`
-  - Locality Name (eg, city) []:`Salt Lake City`
-  - Organization Name (eg, company) []:`Tetrad Sensor Network Solutions, LLC`
-  - Organizational Unit Name (eg, section) []:`com`
-  - Common Name (eg, fully qualified host name) []:`ota.tetradsensors.com`
-  - Email Address []:`contact@tetradsensors.com`
-
-Then the private key needs to be converted to an RSA Private Key for GAE to accept it.:
-
-```bash
-openssl rsa -in ca_key.pem -out ca_key_rsa.pem
-```
-- Then they can be uploaded to GAE->Settings->SSL certificates->Upload a new certificate and apply the cert to the subdomain `ota.tetradsensors.com`
-
-### Domain and DNS Registrar
-- we are hosted through Google Domains
-- \[sub\]domains are currently: `tetradsensors.com`, `www.tetradsensors.com`, `api.tetradsensors.com`
-
-### OTA
-- Subdomain `ota.tetradsensors.com`
-- All routes wrapped in `@check_creds`
-  - all AirUs use the same <username:password> in `Authorization` header 
-
-### New City Checklist
-- Update `model_boxes.json` in GS
-- Update `app.yaml`
-- Update `app_consts.py`
+  - Description: Generate estimated pm2.5 for grid of locations within
+    the box given by hi and lo lats and lons, with the specified size
+    (which determines resolution) at the given date/time.
+  - Return: Array of Objects(lists) with keys (Latitudes(vector), Longitude(vector),
+    Elevations(array), PM2_5(array), PM2.5 variance(array)).
+  - Example:
+    ```
+    curl
+    ''http://127.0.0.1:8080/api/getEstimateMap?lat_lo=40.733534&lat_hi=40.780421&lon_lo=-111.906754&lon_hi=-111.846383&lat_size=100&lon_size=100&date=2019-01-04T00:08:00Z
+    ```
+ 
