@@ -1,21 +1,24 @@
 from datetime import datetime, timedelta
 import os
+import sys
 import json
-from tetrad import app, bq_client, bigquery, utils, gaussian_model_utils, cache, jsonutils
+from tetrad import app, bq_client, bigquery, utils, cache, jsonutils, log_client, gaussian_model_utils
 from tetrad import _area_models
 from dotenv import load_dotenv
 from flask import request, jsonify
+# from pympler.asizeof import asizeof 
 # regular expression stuff for decoding quer 
 import re
 import numpy as np
+import logging
 # Find timezone based on longitude and latitude
 from timezonefinder import TimezoneFinder
-import pandas
-
-
 
 # Load in .env and set the table name
 load_dotenv()  # Required for compatibility with GCP, can't use pipenv there
+
+# log_client.get_default_handler()
+# log_client.setup_logging()
 
 # This is now done in the submit_sensor_query in order to support multiple regions
 #AIRU_TABLE_ID = os.getenv("AIRU_TABLE_ID")
@@ -125,383 +128,385 @@ def filterUpperLowerBounds(lat_lo, lat_hi, lon_lo, lon_hi, start_date, end_date,
         hi = min(max(median + filter_level*MAD, MIN_OUTLIER_LEVEL), MAX_ALLOWED_PM2_5)
         return lo, hi
 
-def filterUpperLowerBoundsForArea(start_date, end_date, area_model, filter_level = DEFAULT_OUTLIER_LEVEL):
-        bbox_array = np.array(area_model['boundingbox'])[:,1:3]
-        lo = bbox_array.min(axis=0)
-        hi = bbox_array.max(axis=0)
-        median, MAD, count = estimateMedianDeviation(start_date, end_date, lo[0], hi[0], lo[1], hi[1], area_model)
-        lo = max(median - filter_level*MAD, 0.0)
-        hi = min(max(median + filter_level*MAD, MIN_OUTLIER_LEVEL), MAX_ALLOWED_PM2_5)
-        print(f"high bounds {hi} and low bounds {lo}")
-        return lo, hi
+# def filterUpperLowerBoundsForArea(start_date, end_date, area_model, filter_level = DEFAULT_OUTLIER_LEVEL):
+#         bbox_array = np.array(area_model['boundingbox'])[:,1:3]
+#         lo = bbox_array.min(axis=0)
+#         hi = bbox_array.max(axis=0)
+#         median, MAD, count = estimateMedianDeviation(start_date, end_date, lo[0], hi[0], lo[1], hi[1], area_model)
+#         lo = max(median - filter_level*MAD, 0.0)
+#         hi = min(max(median + filter_level*MAD, MIN_OUTLIER_LEVEL), MAX_ALLOWED_PM2_5)
+#         print(f"high bounds {hi} and low bounds {lo}")
+#         return lo, hi
 
     
-@app.route("/api/estimateSummaryStatistics", methods=["GET"])
-def estimateSummaryStatistics():
-    start = request.args.get('startTime')
-    end = request.args.get('endTime')
-    lat_hi = float(request.args.get('latHi'))
-    lat_lo = float(request.args.get('latLo'))
-    lon_hi = float(request.args.get('lonHi'))
-    lon_lo = float(request.args.get('lonLo'))
-    area_model = jsonutils.getAreaModelByLocation(_area_models, lat=lat_hi, lon=lon_lo)
-    if area_model == None:
-        msg = f"The query location, lat={lat_hi}, lon={lon_lo}, and/or area string {area_string} does not have a corresponding area model"
-        return msg, 400
-    start_date = jsonutils.parseDateString(start, area_model['timezone'])
-    end_date = jsonutils.parseDateString(end, area_model['timezone'])
+# @app.route("/api/estimateSummaryStatistics", methods=["GET"])
+# def estimateSummaryStatistics():
+#     start = request.args.get('startTime')
+#     end = request.args.get('endTime')
+#     lat_hi = float(request.args.get('latHi'))
+#     lat_lo = float(request.args.get('latLo'))
+#     lon_hi = float(request.args.get('lonHi'))
+#     lon_lo = float(request.args.get('lonLo'))
+#     area_model = jsonutils.getAreaModelByLocation(_area_models, lat=lat_hi, lon=lon_lo)
+#     if area_model == None:
+#         msg = f"The query location, lat={lat_hi}, lon={lon_lo}, and/or area string {area_string} does not have a corresponding area model"
+#         return msg, 400
+#     start_date = jsonutils.parseDateString(start, area_model['timezone'])
+#     end_date = jsonutils.parseDateString(end, area_model['timezone'])
 
-#    print(filterUpperLowerBoundsForArea(start_date, end_date, area_model))
+# #    print(filterUpperLowerBoundsForArea(start_date, end_date, area_model))
 
-    median, MAD, count = estimateMedianDeviation(start_date, end_date, lat_lo, lat_hi, lon_lo, lon_hi, area_model)
+#     median, MAD, count = estimateMedianDeviation(start_date, end_date, lat_lo, lat_hi, lon_lo, lon_hi, area_model)
     
-#    for row in median_data:
-#        print(f"min = {row.min}")
-#        print(f"median = {row.median}")
-#        print(f"max = {row.max}")
-#        print(f"num sensors = {row.num_sensors}")
-    summary = {"median":median, "count":count, "MAD":MAD}
+# #    for row in median_data:
+# #        print(f"min = {row.min}")
+# #        print(f"median = {row.median}")
+# #        print(f"max = {row.max}")
+# #        print(f"num sensors = {row.num_sensors}")
+#     summary = {"median":median, "count":count, "MAD":MAD}
     
-    return(jsonify(summary))
+#     return(jsonify(summary))
 
 
-@app.route("/api/getSensorData", methods=["GET"])
-def getSensorData():
-    # Get the arguments from the query string
-    id = request.args.get('id')
-    sensor_source = request.args.get('sensorSource')
-    start = request.args.get('startTime')
-    end = request.args.get('endTime')
-    if "noCorrection" in request.args:
-        apply_correction = False
-    else:
-        apply_correction = True
+# @app.route("/api/getSensorData", methods=["GET"])
+# def getSensorData():
+#     # Get the arguments from the query string
+#     id = request.args.get('id')
+#     sensor_source = request.args.get('sensorSource')
+#     start = request.args.get('startTime')
+#     end = request.args.get('endTime')
+#     if "noCorrection" in request.args:
+#         apply_correction = False
+#     else:
+#         apply_correction = True
         
-    # Check ID is valid
-    if id == "" or id == "undefined":
-        id = None
-#        msg = "id is invalid. It must be a string that is not '' or 'undefined'."
-#        return msg, 400
+#     # Check ID is valid
+#     if id == "" or id == "undefined":
+#         id = None
+# #        msg = "id is invalid. It must be a string that is not '' or 'undefined'."
+# #        return msg, 400
 
-    if "areamodel" in request.args:
-        area_string = request.args.get('areaModel')
-    else:
-        area_string = "all"
+#     if "areamodel" in request.args:
+#         area_string = request.args.get('areaModel')
+#     else:
+#         area_string = "all"
 
-    # check if sensor_source is specified
-    # If not, default to all
-    if sensor_source == "" or sensor_source == "undefined" or sensor_source==None:
-        # Check that the arguments we want exist
-        sensor_source = "all"
+#     # check if sensor_source is specified
+#     # If not, default to all
+#     if sensor_source == "" or sensor_source == "undefined" or sensor_source==None:
+#         # Check that the arguments we want exist
+#         sensor_source = "all"
 
 
-    # Check that the data is formatted correctly
-    if not utils.validateDate(start) or not utils.validateDate(end):
-        msg = f"Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
-        return msg, 400
+#     # Check that the data is formatted correctly
+#     if not utils.validateDate(start) or not utils.validateDate(end):
+#         msg = f"Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
+#         return msg, 400
 
-    # Define the BigQuery query
+#     # Define the BigQuery query
 
-    # set up the areas so that it does one or all
-    # first, how many area tables are we searching...
-    if area_string == "all":
-        areas = _area_models.keys()
-    else:
-        areas = [area_string]
+#     # set up the areas so that it does one or all
+#     # first, how many area tables are we searching...
+#     if area_string == "all":
+#         areas = _area_models.keys()
+#     else:
+#         areas = [area_string]
 
-    with open('db_table_headings.json') as json_file:
-        db_table_headings = json.load(json_file)
+#     with open('db_table_headings.json') as json_file:
+#         db_table_headings = json.load(json_file)
         
-    query_list = []
+#     query_list = []
 
-    for this_area in areas:
-#        print(f"this_area is {this_area}")
-        area_model = _area_models[this_area]
-#        print(area_model)
-        # this logic adjusts for the two cases, where you have different tables for each source or one table for all sources
-        # get all of the sources if you need to
-        source_query = ""
-        if (sensor_source == "all"):
-            # easy case, query all tables with no source requirement
-            sources = area_model["idstring"]
-        elif "sourcetablemap" in area_model:
-            # if it's organized by table, then get the right table (or nothing)
-            if sensor_source in area_model["sourcetablemap"]:
-                sources = area_model["sourcetablemap"][sensor_source]
-            else:
-                sources = None
-        else:
-            # sources are not organized by table.  Get all the tables and add a boolean to check for the source
-            sources = area_model["idstring"]
-            source_query = f" AND sensorsource = @sensor_source"
+#     for this_area in areas:
+# #        print(f"this_area is {this_area}")
+#         area_model = _area_models[this_area]
+# #        print(area_model)
+#         # this logic adjusts for the two cases, where you have different tables for each source or one table for all sources
+#         # get all of the sources if you need to
+#         source_query = ""
+#         if (sensor_source == "all"):
+#             # easy case, query all tables with no source requirement
+#             sources = area_model["idstring"]
+#         elif "sourcetablemap" in area_model:
+#             # if it's organized by table, then get the right table (or nothing)
+#             if sensor_source in area_model["sourcetablemap"]:
+#                 sources = area_model["sourcetablemap"][sensor_source]
+#             else:
+#                 sources = None
+#         else:
+#             # sources are not organized by table.  Get all the tables and add a boolean to check for the source
+#             sources = area_model["idstring"]
+#             source_query = f" AND sensorsource = @sensor_source"
 
-        for area_id_string in sources:
-            empty_query = False
-            time_string = db_table_headings[area_id_string]['time']
-            pm2_5_string = db_table_headings[area_id_string]['pm2_5']
-            lon_string = db_table_headings[area_id_string]['longitude']
-            lat_string = db_table_headings[area_id_string]['latitude']
-            id_string = db_table_headings[area_id_string]['id']
-            model_string = db_table_headings[area_id_string]['sensormodel']
-            table_string = os.getenv(area_id_string)
+#         for area_id_string in sources:
+#             empty_query = False
+#             time_string = db_table_headings[area_id_string]['time']
+#             pm2_5_string = db_table_headings[area_id_string]['pm2_5']
+#             lon_string = db_table_headings[area_id_string]['longitude']
+#             lat_string = db_table_headings[area_id_string]['latitude']
+#             id_string = db_table_headings[area_id_string]['id']
+#             model_string = db_table_headings[area_id_string]['sensormodel']
+#             table_string = os.getenv(area_id_string)
 
-            column_string = " ".join([id_string, "AS ID,", time_string, "AS time,", pm2_5_string, "AS pm2_5,", lat_string, "AS lat,", lon_string, "AS lon,", "'" + this_area + "'", "AS area_model,", model_string, "AS sensormodel"])
-            # put together a separate query for all of the specified sources
-            table_string = os.getenv(area_id_string)
+#             column_string = " ".join([id_string, "AS ID,", time_string, "AS time,", pm2_5_string, "AS pm2_5,", lat_string, "AS lat,", lon_string, "AS lon,", "'" + this_area + "'", "AS area_model,", model_string, "AS sensormodel"])
+#             # put together a separate query for all of the specified sources
+#             table_string = os.getenv(area_id_string)
 
-            if "sensorsource" in db_table_headings[area_id_string]:
-                sensor_string = db_table_headings[area_id_string]['sensorsource']
-                column_string += ", " + sensor_string + " AS sensorsource"
-            elif (not source_query==""):
-            # if you are looking for a particular sensor source, but that's not part of the tables info, then the query is not going to return anything
-                empty_query = True
+#             if "sensorsource" in db_table_headings[area_id_string]:
+#                 sensor_string = db_table_headings[area_id_string]['sensorsource']
+#                 column_string += ", " + sensor_string + " AS sensorsource"
+#             elif (not source_query==""):
+#             # if you are looking for a particular sensor source, but that's not part of the tables info, then the query is not going to return anything
+#                 empty_query = True
 
 
-                # for efficiency, don't do the query if the sensorsource is needed by not available
+#                 # for efficiency, don't do the query if the sensorsource is needed by not available
 
-            where_string = "time >= @start AND time <= @end"
-            if id != None:
-                where_string  += " AND ID = @id"
-            where_string += source_query
+#             where_string = "time >= @start AND time <= @end"
+#             if id != None:
+#                 where_string  += " AND ID = @id"
+#             where_string += source_query
 
-            this_query = f"""(SELECT * FROM (SELECT {column_string} FROM `{table_string}`) WHERE ({where_string}))"""
-            print(this_query)
+#             this_query = f"""(SELECT * FROM (SELECT {column_string} FROM `{table_string}`) WHERE ({where_string}))"""
+#             print(this_query)
 
-            if not empty_query:
-                query_list.append(this_query)
+#             if not empty_query:
+#                 query_list.append(this_query)
 
-        query = " UNION ALL ".join(query_list) + " ORDER BY time ASC "
+#         query = " UNION ALL ".join(query_list) + " ORDER BY time ASC "
 
-    job_config = bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("id", "STRING", id),
-                        bigquery.ScalarQueryParameter("sensor_source", "STRING", sensor_source),
-            bigquery.ScalarQueryParameter("start", "TIMESTAMP", start),
-            bigquery.ScalarQueryParameter("end", "TIMESTAMP", end),
-        ])
+#     job_config = bigquery.QueryJobConfig(query_parameters=[
+#             bigquery.ScalarQueryParameter("id", "STRING", id),
+#                         bigquery.ScalarQueryParameter("sensor_source", "STRING", sensor_source),
+#             bigquery.ScalarQueryParameter("start", "TIMESTAMP", start),
+#             bigquery.ScalarQueryParameter("end", "TIMESTAMP", end),
+#         ])
 
-    # Run the query and collect the result
-    measurements = []
-    query_job = bq_client.query(query, job_config=job_config)
-#    rows = query_job.result()
-    df = query_job.to_dataframe()
-    status_data = ["No correction"]*df.shape[0]
-    df["status"] = status_data
+#     # Run the query and collect the result
+#     measurements = []
+#     query_job = bq_client.query(query, job_config=job_config)
+# #    rows = query_job.result()
+#     df = query_job.to_dataframe()
+#     status_data = ["No correction"]*df.shape[0]
+#     df["status"] = status_data
 
-#    df.append(bigquery.SchemaField("status", "STRING"))
+# #    df.append(bigquery.SchemaField("status", "STRING"))
 
-#    rows.append(bigquery.SchemaField("status", "STRING"))
-# apply correction factors unless otherwise noted
-    if apply_correction:
-        for idx, datum in df.iterrows():
-            df.at[idx, 'pm2_5'], df.at[idx, 'status'] = jsonutils.applyCorrectionFactor(_area_models[datum["area_model"]]['correctionfactors'], datum['time'], datum['pm2_5'], datum['sensormodel'], status=True)
-#    else:
-#        datum['status'] = "No correction"
+# #    rows.append(bigquery.SchemaField("status", "STRING"))
+# # apply correction factors unless otherwise noted
+#     if apply_correction:
+#         for idx, datum in df.iterrows():
+#             df.at[idx, 'pm2_5'], df.at[idx, 'status'] = jsonutils.applyCorrectionFactor(_area_models[datum["area_model"]]['correctionfactors'], datum['time'], datum['pm2_5'], datum['sensormodel'], status=True)
+# #    else:
+# #        datum['status'] = "No correction"
         
-    for idx, row in df.iterrows():
-        measurements.append({"SensorSource": row["sensorsource"], "SensorID": row["ID"], "PM2_5": row["pm2_5"], "time": row["time"].strftime(utils.DATETIME_FORMAT), "Latitude": row["lat"], "Longitude": row["lon"], "Status": row["status"]})
-    # tags = [{
-    #     "ID": id,
-    #     "SensorSource": sensor_source,
-    #     "time": datetime.utcnow().strftime(utils.DATETIME_FORMAT)
-    # }]
-    # return jsonify({"data": measurements, "tags": tags})
-    return jsonify(measurements)
+#     for idx, row in df.iterrows():
+#         measurements.append({"SensorSource": row["sensorsource"], "SensorID": row["ID"], "PM2_5": row["pm2_5"], "time": row["time"].strftime(utils.DATETIME_FORMAT), "Latitude": row["lat"], "Longitude": row["lon"], "Status": row["status"]})
+#     # tags = [{
+#     #     "ID": id,
+#     #     "SensorSource": sensor_source,
+#     #     "time": datetime.utcnow().strftime(utils.DATETIME_FORMAT)
+#     # }]
+#     # return jsonify({"data": measurements, "tags": tags})
+#     return jsonify(measurements)
 
 
-@app.route("/api/getLiveSensors", methods=["GET"])
-@cache.cached(timeout=59, query_string=True)
-def getLiveSensors():
-    # Get the arguments from the query string
-    sensor_source = request.args.get('sensorSource')
-    if "areaModel" in request.args:
-        area_string = request.args.get('areaModel')
-    else:
-        area_string = "all"
-    if "noCorrection" in request.args:
-        apply_correction = False
-    else:
-        apply_correction = True
-    if "flagOutliers" in request.args:
-        flag_outliers = True
-    else:
-        flag_outliers = False
+# @app.route("/api/getLiveSensors", methods=["GET"])
+# @cache.cached(timeout=59, query_string=True)
+# def getLiveSensors():
+#     # Get the arguments from the query string
+#     sensor_source = request.args.get('sensorSource')
+#     if "areaModel" in request.args:
+#         area_string = request.args.get('areaModel')
+#     else:
+#         area_string = "all"
+#     if "noCorrection" in request.args:
+#         apply_correction = False
+#     else:
+#         apply_correction = True
+#     if "flagOutliers" in request.args:
+#         flag_outliers = True
+#     else:
+#         flag_outliers = False
 
 
-    # check if sensor_source is specified
-    # If not, default to all
-    if sensor_source == "" or sensor_source == "undefined" or sensor_source==None:
-        # Check that the arguments we want exist
-        sensor_source = "all"
+#     # check if sensor_source is specified
+#     # If not, default to all
+#     if sensor_source == "" or sensor_source == "undefined" or sensor_source==None:
+#         # Check that the arguments we want exist
+#         sensor_source = "all"
 
-    # Define the BigQuery query
-    now = datetime.utcnow()
-    one_hour_ago = now - timedelta(hours=1)  # AirU + PurpleAir sensors have reported in the last hour
-    three_hours_ago = now - timedelta(hours=3)  # DAQ sensors have reported in the 3 hours
-    query_list = []
+#     # Define the BigQuery query
+#     now = datetime.utcnow()
+#     one_hour_ago = now - timedelta(hours=1)  # AirU + PurpleAir sensors have reported in the last hour
+#     three_hours_ago = now - timedelta(hours=3)  # DAQ sensors have reported in the 3 hours
+#     query_list = []
 
-    if area_string == "all":
-        areas = _area_models.keys()
-    else:
-        if area_string in _area_models:
-            areas = [area_string]
-        else:
-            msg = f"The area string {area_string} does not have a corresponding area model"
-            return msg, 400
+#     if area_string == "all":
+#         areas = _area_models.keys()
+#     else:
+#         if area_string in _area_models:
+#             areas = [area_string]
+#         else:
+#             msg = f"The area string {area_string} does not have a corresponding area model"
+#             return msg, 400
 
-    with open('db_table_headings.json') as json_file:
-        db_table_headings = json.load(json_file)
+#     with open('db_table_headings.json') as json_file:
+#         db_table_headings = json.load(json_file)
         
-    query_list = []
+#     query_list = []
 
-    for this_area in areas:
-        area_model = _area_models[this_area]
-#        print(area_model)
-        # this logic adjusts for the two cases, where you have different tables for each source or one table for all sources
-        # get all of the sources if you need to
-        source_query = "TRUE"
-        if (sensor_source == "all"):
-            # easy case, query all tables with no source requirement
-            sources = area_model["idstring"]
-        elif "sourcetablemap" in area_model:
-            # if it's organized by table, then get the right table (or nothing)
-            if sensor_source in area_model["sourcetablemap"]:
-                sources = area_model["sourcetablemap"][sensor_source]
-            else:
-                sources = None
-        else:
-            # sources are not organized by table.  Get all the tables and add a boolean to check for the source
-            sources = area_model["idstring"]
-            source_query = f" AND sensorsource = @sensor_source"
+#     for this_area in areas:
+#         area_model = _area_models[this_area]
+# #        print(area_model)
+#         # this logic adjusts for the two cases, where you have different tables for each source or one table for all sources
+#         # get all of the sources if you need to
+#         source_query = "TRUE"
+#         if (sensor_source == "all"):
+#             # easy case, query all tables with no source requirement
+#             sources = area_model["idstring"]
+#         elif "sourcetablemap" in area_model:
+#             # if it's organized by table, then get the right table (or nothing)
+#             if sensor_source in area_model["sourcetablemap"]:
+#                 sources = area_model["sourcetablemap"][sensor_source]
+#             else:
+#                 sources = None
+#         else:
+#             # sources are not organized by table.  Get all the tables and add a boolean to check for the source
+#             sources = area_model["idstring"]
+#             source_query = f" AND sensorsource = @sensor_source"
 
-        for area_id_string in sources:
-            empty_query = False
-            time_string = db_table_headings[area_id_string]['time']
-            pm2_5_string = db_table_headings[area_id_string]['pm2_5']
-            lon_string = db_table_headings[area_id_string]['longitude']
-            lat_string = db_table_headings[area_id_string]['latitude']
-            id_string = db_table_headings[area_id_string]['id']
-            model_string = db_table_headings[area_id_string]['sensormodel']
-            table_string = os.getenv(area_id_string)
+#         for area_id_string in sources:
+#             empty_query = False
+#             time_string = db_table_headings[area_id_string]['time']
+#             pm2_5_string = db_table_headings[area_id_string]['pm2_5']
+#             lon_string = db_table_headings[area_id_string]['longitude']
+#             lat_string = db_table_headings[area_id_string]['latitude']
+#             id_string = db_table_headings[area_id_string]['id']
+#             model_string = db_table_headings[area_id_string]['sensormodel']
+#             table_string = os.getenv(area_id_string)
 
-            column_string = ", ".join([id_string + " AS ID", time_string + " AS time", pm2_5_string + " AS pm2_5", lat_string + " AS lat", lon_string+" AS lon","'" + this_area + "'" + " AS area_model", model_string + " AS sensormodel"])
-            # put together a separate query for all of the specified sources
-            group_string = ", ".join(["ID", "pm2_5", "lat", "lon", "area_model", "sensormodel"])
-            table_string = os.getenv(area_id_string)
+#             column_string = ", ".join([id_string + " AS ID", time_string + " AS time", pm2_5_string + " AS pm2_5", lat_string + " AS lat", lon_string+" AS lon","'" + this_area + "'" + " AS area_model", model_string + " AS sensormodel"])
+#             # put together a separate query for all of the specified sources
+#             group_string = ", ".join(["ID", "pm2_5", "lat", "lon", "area_model", "sensormodel"])
+#             table_string = os.getenv(area_id_string)
 
-            if "sensorsource" in db_table_headings[area_id_string]:
-                sensor_string = db_table_headings[area_id_string]['sensorsource']
-                column_string += ", " + sensor_string + " AS sensorsource"
-                group_string += ", sensorsource" 
-            elif (not source_query==""):
-                # if you are looking for a particular sensor source, but that's not part of the tables info, then the query is not going to return anything
-                empty_query = True
+#             if "sensorsource" in db_table_headings[area_id_string]:
+#                 sensor_string = db_table_headings[area_id_string]['sensorsource']
+#                 column_string += ", " + sensor_string + " AS sensorsource"
+#                 group_string += ", sensorsource" 
+#             elif (not source_query==""):
+#                 # if you are looking for a particular sensor source, but that's not part of the tables info, then the query is not going to return anything
+#                 empty_query = True
         
-            this_query = f"""(WITH a AS (SELECT {column_string} FROM `{table_string}`),  b AS (SELECT {id_string} AS ID, max({time_string}) AS LATEST_MEASUREMENT FROM `{table_string}` WHERE {time_string} >= '{str(one_hour_ago)}' AND {source_query} GROUP BY {id_string}) SELECT * FROM a INNER JOIN b ON a.time = b.LATEST_MEASUREMENT and b.ID = a.ID)"""
-#            this_query = f"""(SELECT * FROM (SELECT {column_string}, max({time_string}) AS LATEST_MEASUREMENT FROM `{table_string}` WHERE {time_string} >= '{str(one_hour_ago)}' GROUP BY {group_string}) WHERE LATEST_MEASUREMENT > '{str(one_hour_ago)}')"""
+#             this_query = f"""(WITH a AS (SELECT {column_string} FROM `{table_string}`),  b AS (SELECT {id_string} AS ID, max({time_string}) AS LATEST_MEASUREMENT FROM `{table_string}` WHERE {time_string} >= '{str(one_hour_ago)}' AND {source_query} GROUP BY {id_string}) SELECT * FROM a INNER JOIN b ON a.time = b.LATEST_MEASUREMENT and b.ID = a.ID)"""
+# #            this_query = f"""(SELECT * FROM (SELECT {column_string}, max({time_string}) AS LATEST_MEASUREMENT FROM `{table_string}` WHERE {time_string} >= '{str(one_hour_ago)}' GROUP BY {group_string}) WHERE LATEST_MEASUREMENT > '{str(one_hour_ago)}')"""
             
-#            print(this_query)
+# #            print(this_query)
 
-            if not empty_query:
-                query_list.append(this_query)
+#             if not empty_query:
+#                 query_list.append(this_query)
 
-    # if sensor_source == "AirU" or sensor_source == "all":
-    #     query_list.append(
-    #         f"""(
-    #             SELECT a.ID, time, PM2_5, Latitude, Longitude, SensorModel, 'AirU' as SensorSource
-    #             FROM `{AIRU_TABLE_ID}` as a
-    #             INNER JOIN (
-    #                 SELECT ID, max(time) AS LATEST_MEASUREMENT
-    #                 FROM `{AIRU_TABLE_ID}`
-    #                 WHERE time >= '{str(one_hour_ago)}'
-    #                 GROUP BY ID
-    #             ) AS b ON a.ID = b.ID AND a.time = b.LATEST_MEASUREMENT
-    #             WHERE time >= '{str(one_hour_ago)}'
-    #         )"""
-    #     )
+#     # if sensor_source == "AirU" or sensor_source == "all":
+#     #     query_list.append(
+#     #         f"""(
+#     #             SELECT a.ID, time, PM2_5, Latitude, Longitude, SensorModel, 'AirU' as SensorSource
+#     #             FROM `{AIRU_TABLE_ID}` as a
+#     #             INNER JOIN (
+#     #                 SELECT ID, max(time) AS LATEST_MEASUREMENT
+#     #                 FROM `{AIRU_TABLE_ID}`
+#     #                 WHERE time >= '{str(one_hour_ago)}'
+#     #                 GROUP BY ID
+#     #             ) AS b ON a.ID = b.ID AND a.time = b.LATEST_MEASUREMENT
+#     #             WHERE time >= '{str(one_hour_ago)}'
+#     #         )"""
+#     #     )
 
-    # if sensor_source == "PurpleAir" or sensor_source == "all":
-    #     query_list.append(
-    #         f"""(
-    #             SELECT a.ID, time, PM2_5, Latitude, Longitude, '' as SensorModel, 'PurpleAir' as SensorSource
-    #             FROM `{PURPLEAIR_TABLE_ID}` as a
-    #             INNER JOIN (
-    #                 SELECT ID, max(time) AS LATEST_MEASUREMENT
-    #                 FROM `{PURPLEAIR_TABLE_ID}`
-    #                 WHERE time >= '{str(one_hour_ago)}'
-    #                 GROUP BY ID
-    #             ) AS b ON a.ID = b.ID AND a.time = b.LATEST_MEASUREMENT
-    #             WHERE time >= '{str(one_hour_ago)}'
-    #         )"""
-    #     )
+#     # if sensor_source == "PurpleAir" or sensor_source == "all":
+#     #     query_list.append(
+#     #         f"""(
+#     #             SELECT a.ID, time, PM2_5, Latitude, Longitude, '' as SensorModel, 'PurpleAir' as SensorSource
+#     #             FROM `{PURPLEAIR_TABLE_ID}` as a
+#     #             INNER JOIN (
+#     #                 SELECT ID, max(time) AS LATEST_MEASUREMENT
+#     #                 FROM `{PURPLEAIR_TABLE_ID}`
+#     #                 WHERE time >= '{str(one_hour_ago)}'
+#     #                 GROUP BY ID
+#     #             ) AS b ON a.ID = b.ID AND a.time = b.LATEST_MEASUREMENT
+#     #             WHERE time >= '{str(one_hour_ago)}'
+#     #         )"""
+#     #     )
 
-    # if sensor_source == "DAQ" or sensor_source == "all":
-    #     query_list.append(
-    #         f"""(
-    #             SELECT a.ID, time, PM2_5, Latitude, Longitude, '' as SensorModel, 'DAQ' as SensorSource
-    #             FROM `{DAQ_TABLE_ID}` as a
-    #             INNER JOIN (
-    #                 SELECT ID, max(time) AS LATEST_MEASUREMENT
-    #                 FROM `{DAQ_TABLE_ID}`
-    #                 WHERE time >= '{str(three_hours_ago)}'
-    #                 GROUP BY ID
-    #             ) AS b ON a.ID = b.ID AND a.time = b.LATEST_MEASUREMENT
-    #             WHERE time >= '{str(three_hours_ago)}'
-    #         )"""
-    #     )
+#     # if sensor_source == "DAQ" or sensor_source == "all":
+#     #     query_list.append(
+#     #         f"""(
+#     #             SELECT a.ID, time, PM2_5, Latitude, Longitude, '' as SensorModel, 'DAQ' as SensorSource
+#     #             FROM `{DAQ_TABLE_ID}` as a
+#     #             INNER JOIN (
+#     #                 SELECT ID, max(time) AS LATEST_MEASUREMENT
+#     #                 FROM `{DAQ_TABLE_ID}`
+#     #                 WHERE time >= '{str(three_hours_ago)}'
+#     #                 GROUP BY ID
+#     #             ) AS b ON a.ID = b.ID AND a.time = b.LATEST_MEASUREMENT
+#     #             WHERE time >= '{str(three_hours_ago)}'
+#     #         )"""
+#     #     )
 
-    # Build the actual query from the list of options
-    query = " UNION ALL ".join(query_list)
+#     # Build the actual query from the list of options
+#     query = " UNION ALL ".join(query_list)
 
-    # Run the query and collect the result
-    query_job = bq_client.query(query)
-#    rows = query_job.result()
-    df = query_job.to_dataframe()
-    status_data = [[]]*df.shape[0]
-    df["status"] = status_data
+#     # Run the query and collect the result
+#     query_job = bq_client.query(query)
+# #    rows = query_job.result()
+#     df = query_job.to_dataframe()
+#     status_data = [[]]*df.shape[0]
+#     df["status"] = status_data
     
-    if flag_outliers:
-        filters = {}
-        for this_area in areas:
-            area_model = _area_models[this_area]
-            lo_filter, hi_filter = filterUpperLowerBoundsForArea(str(one_hour_ago), str(now), area_model)
-            filters[this_area] = (lo_filter,hi_filter)
-        for idx, datum in df.iterrows():
-            this_lo, this_hi = filters[datum["area_model"]]
-            this_data = datum['pm2_5']
-            if  this_data < 0.0:
-                df.at[idx, 'status'] = df.at[idx, 'status'] + ["No data"]
-            elif (this_data < this_lo) or (this_data > this_hi):
-                df.at[idx, 'status'] = df.at[idx, 'status'] + ["Outlier"]
+#     if flag_outliers:
+#         filters = {}
+#         for this_area in areas:
+#             area_model = _area_models[this_area]
+#             lo_filter, hi_filter = filterUpperLowerBoundsForArea(str(one_hour_ago), str(now), area_model)
+#             filters[this_area] = (lo_filter,hi_filter)
+#         for idx, datum in df.iterrows():
+#             this_lo, this_hi = filters[datum["area_model"]]
+#             this_data = datum['pm2_5']
+#             if  this_data < 0.0:
+#                 df.at[idx, 'status'] = df.at[idx, 'status'] + ["No data"]
+#             elif (this_data < this_lo) or (this_data > this_hi):
+#                 df.at[idx, 'status'] = df.at[idx, 'status'] + ["Outlier"]
                 
 
-    if apply_correction:
-        for idx, datum in df.iterrows():
-            df.at[idx, 'pm2_5'], this_status= jsonutils.applyCorrectionFactor(_area_models[datum["area_model"]]['correctionfactors'], datum['time'], datum['pm2_5'], datum['sensormodel'], status=True)
-            df.at[idx, 'status'] = df.at[idx, 'status'] + [this_status]
-    else:
-        for idx, datum in df.iterrows():
-            df.at[idx, 'status'] += ["No correction"]
+#     if apply_correction:
+#         for idx, datum in df.iterrows():
+#             df.at[idx, 'pm2_5'], this_status= jsonutils.applyCorrectionFactor(_area_models[datum["area_model"]]['correctionfactors'], datum['time'], datum['pm2_5'], datum['sensormodel'], status=True)
+#             df.at[idx, 'status'] = df.at[idx, 'status'] + [this_status]
+#     else:
+#         for idx, datum in df.iterrows():
+#             df.at[idx, 'status'] += ["No correction"]
 
-    sensor_list = []
-    for idx, row in df.iterrows():
-        sensor_list.append(
-            {
-                "ID": str(row["ID"]),
-                "Latitude": row["lat"],
-                "Longitude": row["lon"],
-                "time": row["time"],
-                "PM2_5": row["pm2_5"],
-                "SensorModel": row["sensormodel"],
-                "SensorSource": row["sensorsource"],
-                "Status":row["status"]
-            }
-        )
-    return jsonify(sensor_list)
+#     sensor_list = []
+#     for idx, row in df.iterrows():
+#         sensor_list.append(
+#             {
+#                 "ID": str(row["ID"]),
+#                 "Latitude": row["lat"],
+#                 "Longitude": row["lon"],
+#                 "time": row["time"],
+#                 "PM2_5": row["pm2_5"],
+#                 "SensorModel": row["sensormodel"],
+#                 "SensorSource": row["sensorsource"],
+#                 "Status":row["status"]
+#             }
+#         )
+#     return jsonify(sensor_list)
 
 
+# https://sandbox-dot-tetrad-296715.wm.r.appspot.com/api/getEstimateMap?areaModel=Cleveland&latSize=100&lonSize=100&time=2021-06-01T00:00:00Z&latHi=41.2&latLo=39.2&lonHi=-111.63&lonLo=-112.2
 @app.route("/api/getEstimateMap", methods=["GET"])
 def getEstimateMap():
 
+    logging.warning(f"getEstimateMap() called with parameters: {request.args}")
     # this species grid positions should be interpolated in UTM coordinates
     # right now (Nov 2020) this is not supported.
     # might be used later in order to build grids of data in UTM coordinates -- this would depend on what the display/visualization code needs
@@ -543,7 +548,7 @@ def getEstimateMap():
     else:
         datesequence=False
 
-    if "area_model" in request.args:
+    if "areaModel" in request.args:
         area_string = request.args.get('areaModel')
     else:
         area_string = None
@@ -554,7 +559,10 @@ def getEstimateMap():
         return msg, 400
 
 
-    app.logger.info((
+    # app.logger.info((
+    #     f"Query parameters: lat_lo={lat_lo} lat_hi={lat_hi}  lon_lo={lon_lo} lon_hi={lon_hi} lat_res={lat_res} lon_res={lon_res}"
+    # ))
+    logging.info((
         f"Query parameters: lat_lo={lat_lo} lat_hi={lat_hi}  lon_lo={lon_lo} lon_hi={lon_hi} lat_res={lat_res} lon_res={lon_res}"
     ))
 
@@ -571,6 +579,7 @@ def getEstimateMap():
 #        query_locations_
         return 'UTM not yet supported', 400
 
+    area_model['elevationinterpolator'] = jsonutils.buildAreaElevationInterpolator(area_model['elevationfile'])
     elevations = area_model['elevationinterpolator'](lon_vector, lat_vector)
     locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
     query_lats = locations_lat.flatten()
@@ -636,216 +645,216 @@ def getEstimateMap():
     return jsonify(return_object)
     
 
-@app.route("/api/getTimeAggregatedData", methods=["GET"])
-def getTimeAggregatedData():
-    # this is used to convert the parameter terms to those used in the database
-    group_tags = {"id":"ID", "sensorModel":"sensormodel", "area":"areamodel"}
-    # Get the arguments from the query string
-    id = request.args.get('id')
-    sensor_source = request.args.get('sensorSource')
-    start = request.args.get('startTime')
-    end = request.args.get('endTime')
-    function = request.args.get('function')
-    if "timeInterval" in request.args:
-        timeInterval = int(request.args.get('timeInterval'))  # Time interval in minutes
-    else:
-        timeInterval = 60
-    if "applyCorrection" in request.args:
-        apply_correction = True
-    else:
-        apply_correction = False
+# @app.route("/api/getTimeAggregatedData", methods=["GET"])
+# def getTimeAggregatedData():
+#     # this is used to convert the parameter terms to those used in the database
+#     group_tags = {"id":"ID", "sensorModel":"sensormodel", "area":"areamodel"}
+#     # Get the arguments from the query string
+#     id = request.args.get('id')
+#     sensor_source = request.args.get('sensorSource')
+#     start = request.args.get('startTime')
+#     end = request.args.get('endTime')
+#     function = request.args.get('function')
+#     if "timeInterval" in request.args:
+#         timeInterval = int(request.args.get('timeInterval'))  # Time interval in minutes
+#     else:
+#         timeInterval = 60
+#     if "applyCorrection" in request.args:
+#         apply_correction = True
+#     else:
+#         apply_correction = False
 
-    if "groupBy" in request.args:
-        group_by = request.args.get("groupBy")
-        if group_by in group_tags:
-            group_string = f", {group_tags[group_by]}"
-        else:
-            msg = "Ground must be one of id, sensorSource, area"
-            return msg, 400
-    else:
-        group_string = ""
-        group_by == None
+#     if "groupBy" in request.args:
+#         group_by = request.args.get("groupBy")
+#         if group_by in group_tags:
+#             group_string = f", {group_tags[group_by]}"
+#         else:
+#             msg = "Ground must be one of id, sensorSource, area"
+#             return msg, 400
+#     else:
+#         group_string = ""
+#         group_by == None
 
-# if you are going to apply correction, you need to have data grouped by area and sensortype
-    if apply_correction:
-        print(f"group by is {group_by}")
-        if group_by == "id" or group_by == None:
-            group_string = ", " + ", ".join(list(group_tags.values())[0:3])
-        elif group_by == "sensorModel":
-            group_string = ", ".join([group_string, group_tags["area"]])
-        elif group_by == "area":
-            group_string = ", ".join([group_string, group_tags["sensorModel"]])
-        else:
-            app.logger.warn("got a problem with the groupby logic")
-            group_string = ""
+# # if you are going to apply correction, you need to have data grouped by area and sensortype
+#     if apply_correction:
+#         print(f"group by is {group_by}")
+#         if group_by == "id" or group_by == None:
+#             group_string = ", " + ", ".join(list(group_tags.values())[0:3])
+#         elif group_by == "sensorModel":
+#             group_string = ", ".join([group_string, group_tags["area"]])
+#         elif group_by == "area":
+#             group_string = ", ".join([group_string, group_tags["sensorModel"]])
+#         else:
+#             app.logger.warn("got a problem with the groupby logic")
+#             group_string = ""
             
 
 
 
-    # Check ID is valid
-    if id == "" or id == "undefined":
-        id = None
-#        msg = "id is invalid. It must be a string that is not '' or 'undefined'."
-#        return msg, 400
+#     # Check ID is valid
+#     if id == "" or id == "undefined":
+#         id = None
+# #        msg = "id is invalid. It must be a string that is not '' or 'undefined'."
+# #        return msg, 400
 
-    if "areamodel" in request.args:
-        area_string = request.args.get('areaModel')
-    else:
-        area_string = "all"
+#     if "areamodel" in request.args:
+#         area_string = request.args.get('areaModel')
+#     else:
+#         area_string = "all"
 
-    # check if sensor_source is specified
-    # If not, default to all
-    if sensor_source == "" or sensor_source == "undefined" or sensor_source==None:
-        # Check that the arguments we want exist
-        sensor_source = "all"
-
-
-    SQL_FUNCTIONS = {
-        "mean": "AVG",
-        "min": "MIN",
-        "max": "MAX",
-    }
-
-    # Check aggregation function is valid
-    if function not in SQL_FUNCTIONS:
-        msg = f"function is not in {SQL_FUNCTIONS.keys()}"
-        return msg, 400
-
-    # Check that the data is formatted correctly
-    if not utils.validateDate(start) or not utils.validateDate(end):
-        msg = "Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
-        return msg, 400
-
-    time_tmp = utils.parseDateString(end)
-    end_interval = (time_tmp + timedelta(minutes = int(timeInterval))).strftime(utils.DATETIME_FORMAT)
+#     # check if sensor_source is specified
+#     # If not, default to all
+#     if sensor_source == "" or sensor_source == "undefined" or sensor_source==None:
+#         # Check that the arguments we want exist
+#         sensor_source = "all"
 
 
-    # Define the BigQuery query
+#     SQL_FUNCTIONS = {
+#         "mean": "AVG",
+#         "min": "MIN",
+#         "max": "MAX",
+#     }
 
-    if area_string == "all":
-        areas = _area_models.keys()
-    else:
-        areas = [area_string]
+#     # Check aggregation function is valid
+#     if function not in SQL_FUNCTIONS:
+#         msg = f"function is not in {SQL_FUNCTIONS.keys()}"
+#         return msg, 400
 
-    with open('db_table_headings.json') as json_file:
-        db_table_headings = json.load(json_file)
+#     # Check that the data is formatted correctly
+#     if not utils.validateDate(start) or not utils.validateDate(end):
+#         msg = "Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
+#         return msg, 400
+
+#     time_tmp = utils.parseDateString(end)
+#     end_interval = (time_tmp + timedelta(minutes = int(timeInterval))).strftime(utils.DATETIME_FORMAT)
 
 
-    tables_list = []
+#     # Define the BigQuery query
 
-    print(areas)
+#     if area_string == "all":
+#         areas = _area_models.keys()
+#     else:
+#         areas = [area_string]
+
+#     with open('db_table_headings.json') as json_file:
+#         db_table_headings = json.load(json_file)
+
+
+#     tables_list = []
+
+#     print(areas)
     
-    for this_area in areas:
-        area_model = _area_models[this_area]
-#        print(area_model)
-        # this logic adjusts for the two cases, where you have different tables for each source or one table for all sources
-        # get all of the sources if you need to
-        source_query = ""
-        if (sensor_source == "all"):
-            # easy case, query all tables with no source requirement
-            sources = area_model["idstring"]
-        elif "sourcetablemap" in area_model:
-            # if it's organized by table, then get the right table (or nothing)
-            if sensor_source in area_model["sourcetablemap"]:
-                sources = area_model["sourcetablemap"][sensor_source]
-            else:
-                sources = None
-        else:
-            # sources are not organized by table.  Get all the tables and add a boolean to check for the source
-            sources = area_model["idstring"]
-            source_query = f" AND sensorsource = @sensor_source"
+#     for this_area in areas:
+#         area_model = _area_models[this_area]
+# #        print(area_model)
+#         # this logic adjusts for the two cases, where you have different tables for each source or one table for all sources
+#         # get all of the sources if you need to
+#         source_query = ""
+#         if (sensor_source == "all"):
+#             # easy case, query all tables with no source requirement
+#             sources = area_model["idstring"]
+#         elif "sourcetablemap" in area_model:
+#             # if it's organized by table, then get the right table (or nothing)
+#             if sensor_source in area_model["sourcetablemap"]:
+#                 sources = area_model["sourcetablemap"][sensor_source]
+#             else:
+#                 sources = None
+#         else:
+#             # sources are not organized by table.  Get all the tables and add a boolean to check for the source
+#             sources = area_model["idstring"]
+#             source_query = f" AND sensorsource = @sensor_source"
 
-        print(sources)
-        for area_id_string in sources:
-            empty_query = False
-            time_string = db_table_headings[area_id_string]['time']
-            pm2_5_string = db_table_headings[area_id_string]['pm2_5']
-            lon_string = db_table_headings[area_id_string]['longitude']
-            lat_string = db_table_headings[area_id_string]['latitude']
-            id_string = db_table_headings[area_id_string]['id']
-            model_string = db_table_headings[area_id_string]['sensormodel']
-            table_string = os.getenv(area_id_string)
+#         print(sources)
+#         for area_id_string in sources:
+#             empty_query = False
+#             time_string = db_table_headings[area_id_string]['time']
+#             pm2_5_string = db_table_headings[area_id_string]['pm2_5']
+#             lon_string = db_table_headings[area_id_string]['longitude']
+#             lat_string = db_table_headings[area_id_string]['latitude']
+#             id_string = db_table_headings[area_id_string]['id']
+#             model_string = db_table_headings[area_id_string]['sensormodel']
+#             table_string = os.getenv(area_id_string)
 
-            column_string = ", ".join([id_string + " AS ID", time_string + " AS time", pm2_5_string + " AS pm2_5", lat_string + " AS lat", lon_string+" AS lon","'" + this_area + "'" + " AS areamodel", model_string + " AS sensormodel"])
-            # put together a separate query for all of the specified sources
-#            group_string = ", ".join(["ID", "pm2_5", "lat", "lon", "area_model", "sensormodel"])
-            table_string = os.getenv(area_id_string)
+#             column_string = ", ".join([id_string + " AS ID", time_string + " AS time", pm2_5_string + " AS pm2_5", lat_string + " AS lat", lon_string+" AS lon","'" + this_area + "'" + " AS areamodel", model_string + " AS sensormodel"])
+#             # put together a separate query for all of the specified sources
+# #            group_string = ", ".join(["ID", "pm2_5", "lat", "lon", "area_model", "sensormodel"])
+#             table_string = os.getenv(area_id_string)
 
-            if "sensorsource" in db_table_headings[area_id_string]:
-                sensor_string = db_table_headings[area_id_string]['sensorsource']
-                column_string += ", " + sensor_string + " AS sensorsource"
-            elif (not source_query==""):
-                # if you are looking for a particular sensor source, but that's not part of the tables info, then the query is not going to return anything
-                empty_query = True
+#             if "sensorsource" in db_table_headings[area_id_string]:
+#                 sensor_string = db_table_headings[area_id_string]['sensorsource']
+#                 column_string += ", " + sensor_string + " AS sensorsource"
+#             elif (not source_query==""):
+#                 # if you are looking for a particular sensor source, but that's not part of the tables info, then the query is not going to return anything
+#                 empty_query = True
 
                 
-            where_string = f"pm2_5 < {MAX_ALLOWED_PM2_5} AND time >= @start AND time <= '{end_interval}'"
-            if id != None:
-                where_string  += " AND ID = @id"
-            where_string += source_query
+#             where_string = f"pm2_5 < {MAX_ALLOWED_PM2_5} AND time >= @start AND time <= '{end_interval}'"
+#             if id != None:
+#                 where_string  += " AND ID = @id"
+#             where_string += source_query
 
-            this_query = f"""(SELECT * FROM (SELECT {column_string} FROM `{table_string}`) WHERE ({where_string}))"""
+#             this_query = f"""(SELECT * FROM (SELECT {column_string} FROM `{table_string}`) WHERE ({where_string}))"""
         
-            print(this_query)
+#             print(this_query)
 
-            if not empty_query:
-                tables_list.append(this_query)
+#             if not empty_query:
+#                 tables_list.append(this_query)
 
 
-    query = f"""
-        WITH
-            intervals AS (
-                SELECT
-                    TIMESTAMP_ADD(@start, INTERVAL @interval * num MINUTE) AS lower,
-                    TIMESTAMP_ADD(@start, INTERVAL @interval * 60* (1 + num) - 1 SECOND) AS upper
-                FROM UNNEST(GENERATE_ARRAY(0,  DIV(TIMESTAMP_DIFF(@end, @start, MINUTE) , @interval))) AS num
-            )
-        SELECT
-            CASE WHEN {SQL_FUNCTIONS.get(function)}(pm2_5) IS NOT NULL
-                THEN {SQL_FUNCTIONS.get(function)}(pm2_5)
-                ELSE 0
-                END AS PM2_5,
-            upper  {group_string}
-        FROM intervals
-            JOIN (
-            {' UNION ALL '.join(tables_list)}
-        ) sensors
-            ON sensors.time BETWEEN intervals.lower AND intervals.upper
-        GROUP BY upper {group_string}
-        ORDER BY upper"""
+#     query = f"""
+#         WITH
+#             intervals AS (
+#                 SELECT
+#                     TIMESTAMP_ADD(@start, INTERVAL @interval * num MINUTE) AS lower,
+#                     TIMESTAMP_ADD(@start, INTERVAL @interval * 60* (1 + num) - 1 SECOND) AS upper
+#                 FROM UNNEST(GENERATE_ARRAY(0,  DIV(TIMESTAMP_DIFF(@end, @start, MINUTE) , @interval))) AS num
+#             )
+#         SELECT
+#             CASE WHEN {SQL_FUNCTIONS.get(function)}(pm2_5) IS NOT NULL
+#                 THEN {SQL_FUNCTIONS.get(function)}(pm2_5)
+#                 ELSE 0
+#                 END AS PM2_5,
+#             upper  {group_string}
+#         FROM intervals
+#             JOIN (
+#             {' UNION ALL '.join(tables_list)}
+#         ) sensors
+#             ON sensors.time BETWEEN intervals.lower AND intervals.upper
+#         GROUP BY upper {group_string}
+#         ORDER BY upper"""
 
-    job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("id", "STRING", id),
-            bigquery.ScalarQueryParameter("start", "TIMESTAMP", start),
-            bigquery.ScalarQueryParameter("end", "TIMESTAMP", end),
-            bigquery.ScalarQueryParameter("interval", "INT64", timeInterval),
-        ]
-    )
+#     job_config = bigquery.QueryJobConfig(
+#         query_parameters=[
+#             bigquery.ScalarQueryParameter("id", "STRING", id),
+#             bigquery.ScalarQueryParameter("start", "TIMESTAMP", start),
+#             bigquery.ScalarQueryParameter("end", "TIMESTAMP", end),
+#             bigquery.ScalarQueryParameter("interval", "INT64", timeInterval),
+#         ]
+#     )
 
-    # Run the query and collect the result
-    measurements = []
-    query_job = bq_client.query(query, job_config=job_config)
-    rows = query_job.result()
+#     # Run the query and collect the result
+#     measurements = []
+#     query_job = bq_client.query(query, job_config=job_config)
+#     rows = query_job.result()
 
-    if group_string == "":
-        for row in rows:
-            if apply_correction:
-                new_pm2_5, status = jsonutils.applyCorrectionFactor(_area_models[row.areamodel]['correctionfactors'], row.upper, row.PM2_5, row.sensormodel, status=True)
-            else:
-                new_pm2_5 = row.PM2_5
-                status = "Not corrected"
-            measurements.append({"PM2_5": new_pm2_5, "time":  (row.upper + timedelta(seconds=1)).strftime(utils.DATETIME_FORMAT), "Status": status})
-    else:
-        for row in rows:
-            if apply_correction:
-                new_pm2_5, status = jsonutils.applyCorrectionFactor(_area_models[row.areamodel]['correctionfactors'], row.upper, row.PM2_5, row.sensormodel, status=True)
-            else:
-                new_pm2_5 = row.PM2_5
-                status = "Not corrected"
-            measurements.append({"PM2_5": new_pm2_5, "time": (row.upper + timedelta(seconds=1)).strftime(utils.DATETIME_FORMAT), group_by: row[group_tags[group_by]], "Status":status})
+#     if group_string == "":
+#         for row in rows:
+#             if apply_correction:
+#                 new_pm2_5, status = jsonutils.applyCorrectionFactor(_area_models[row.areamodel]['correctionfactors'], row.upper, row.PM2_5, row.sensormodel, status=True)
+#             else:
+#                 new_pm2_5 = row.PM2_5
+#                 status = "Not corrected"
+#             measurements.append({"PM2_5": new_pm2_5, "time":  (row.upper + timedelta(seconds=1)).strftime(utils.DATETIME_FORMAT), "Status": status})
+#     else:
+#         for row in rows:
+#             if apply_correction:
+#                 new_pm2_5, status = jsonutils.applyCorrectionFactor(_area_models[row.areamodel]['correctionfactors'], row.upper, row.PM2_5, row.sensormodel, status=True)
+#             else:
+#                 new_pm2_5 = row.PM2_5
+#                 status = "Not corrected"
+#             measurements.append({"PM2_5": new_pm2_5, "time": (row.upper + timedelta(seconds=1)).strftime(utils.DATETIME_FORMAT), group_by: row[group_tags[group_by]], "Status":status})
 
-    return jsonify({"data": measurements})
+#     return jsonify({"data": measurements})
 
 
 # submit a query for a range of values
@@ -989,40 +998,43 @@ def request_model_data_local(lats, lons, radius, start_date, end_date, area_mode
     return model_data
 
 
-# returns sensor data for a range of times within a distance radius (meters) of the lat-lon location.
-# notice the times are assumed to be mountain time....
-@app.route("/api/getLocalSensorData", methods=['GET'])
-def getLocalSensorData():
-    query_parameters = request.args
-    try:
-        lat = float(query_parameters.get('lat'))
-        lon = float(query_parameters.get('lon'))
-        radius = float(query_parameters.get('radius'))
-    except ValueError:
-        return 'lat, lon, radius, must be floats.', 400
+# # returns sensor data for a range of times within a distance radius (meters) of the lat-lon location.
+# # notice the times are assumed to be mountain time....
+# @app.route("/api/getLocalSensorData", methods=['GET'])
+# def getLocalSensorData():
+#     query_parameters = request.args
+#     try:
+#         lat = float(query_parameters.get('lat'))
+#         lon = float(query_parameters.get('lon'))
+#         radius = float(query_parameters.get('radius'))
+#     except ValueError:
+#         return 'lat, lon, radius, must be floats.', 400
 
-    start_date = query_parameters.get('startTime')
-    end_date = query_parameters.get('endTime')
-#    print("model requuest api with " + str(lat) + ":" + str(lon) + " and radius " + str(radius) + " and start " + str(start_date) + " and end " + str(end_date))
-    # must format these for database
-    tf = TimezoneFinder()
-    start_datetime = jsonutils.parseDateString(start_date, tf.timezone_at(lng=lon, lat=lat))
-    end_datetime = jsonutils.parseDateString(end_date, tf.timezone_at(lng=lon, lat=lat))
-    if start_datetime == None or end_datetime == None:
-        msg = f"The query ({start_date}, {end_date}) is not a recognized date/time format; see also https://www.cl.cam.ac.uk/~mgk25/iso-time.html.  Default time zone is {area_model['timezone']}"
-        return msg, 400
+#     start_date = query_parameters.get('startTime')
+#     end_date = query_parameters.get('endTime')
+# #    print("model requuest api with " + str(lat) + ":" + str(lon) + " and radius " + str(radius) + " and start " + str(start_date) + " and end " + str(end_date))
+#     # must format these for database
+#     tf = TimezoneFinder()
+#     start_datetime = jsonutils.parseDateString(start_date, tf.timezone_at(lng=lon, lat=lat))
+#     end_datetime = jsonutils.parseDateString(end_date, tf.timezone_at(lng=lon, lat=lat))
+#     if start_datetime == None or end_datetime == None:
+#         msg = f"The query ({start_date}, {end_date}) is not a recognized date/time format; see also https://www.cl.cam.ac.uk/~mgk25/iso-time.html.  Default time zone is {area_model['timezone']}"
+#         return msg, 400
 
 
-    area_model = jsonutils.getAreaModelByLocation(_area_models, lat, lon)
-    model_data = request_model_data_local(lat, lon, radius, start_datetime, end_datetime, area_model, outlier_filtering = False)
-    return jsonify(model_data)
+#     area_model = jsonutils.getAreaModelByLocation(_area_models, lat, lon)
+#     model_data = request_model_data_local(lat, lon, radius, start_datetime, end_datetime, area_model, outlier_filtering = False)
+#     return jsonify(model_data)
 
 # get estimates within a time frame for a single location
+# https://sandbox-dot-tetrad-296715.wm.r.appspot.com/api/getEstimatesForLocation?lat=40.7340630421765&lon=-111.84656540406624&timeInterval=0.1&startTime=2021-06-01T00:00:00Z&endTime=2021-06-01T01:00:00Z
 @app.route("/api/getEstimatesForLocation", methods=['GET'])
 def getEstimatesForLocation():
     # Check that the arguments we want exist
     # if not validateInputs(['lat', 'lon', 'estimatesperhour', 'start_date', 'end_date'], request.args):
     #     return 'Query string is missing one or more of lat, lon, estimatesperhour, start_date, end_date', 400
+
+    print('print statement for getEstimatesForLocation()')
 
     # step -1, parse query parameters
     try:
@@ -1040,11 +1052,18 @@ def getEstimatesForLocation():
         msg = f"Incorrect date format, should be {utils.DATETIME_FORMAT}, e.g.: 2018-01-03T20:00:00Z"
         return msg, 400
 
-
     area_model = jsonutils.getAreaModelByLocation(_area_models, query_lat, query_lon)
+
     if area_model == None:
         msg = f"The query location, lat={query_lat}, lon={query_lon}, does not have a corresponding area model"
         return msg, 400
+
+    print('about to load elevationinterpolator')
+
+    area_model['elevationinterpolator'] = jsonutils.buildAreaElevationInterpolator(area_model['elevationfile'])
+
+    print('elevationinterpolater loaded')
+
 
     query_start_datetime = jsonutils.parseDateString(query_start_date, area_model['timezone'])
     query_end_datetime = jsonutils.parseDateString(query_end_date, area_model['timezone'])
@@ -1082,12 +1101,15 @@ def getEstimatesForLocation():
 
 
 # get estimates within a time frame for a multiple locations, given as a list of lat/lons in the query parameters
-### this allows multi lats/lons to be specified.  
+### this allows multi lats/lons to be specified.
+# https://sandbox-dot-tetrad-296715.wm.r.appspot.com/api/getEstimatesForLocations?timeInterval=0.25&lat=
 @app.route("/api/getEstimatesForLocations", methods=['GET'])
 def getEstimatesForLocations():
     # Check that the arguments we want exist
     # if not validateInputs(['lat', 'lon', 'estimatesperhour', 'start_date', 'end_date'], request.args):
     #     return 'Query string is missing one or more of lat, lon, estimatesperhour, start_date, end_date', 400
+
+    logging.warning(f"getEstimatesForLocations() called with parameters: {request.args}")
 
     # step -1, parse query parameters
     try:
@@ -1117,6 +1139,7 @@ def getEstimatesForLocations():
     if area_model == None:
         msg = f"The query location, lat={query_lats[0]}, lon={query_lons[0]}, does not have a corresponding area model"
         return msg, 400
+    area_model['elevationinterpolator'] = jsonutils.buildAreaElevationInterpolator(area_model['elevationfile'])
 
     query_start_datetime = jsonutils.parseDateString(query_start_date, area_model['timezone'])
     query_end_datetime = jsonutils.parseDateString(query_end_date, area_model['timezone'])

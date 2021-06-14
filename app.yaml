@@ -16,15 +16,29 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
+service: sandbox
+
 runtime: python37
+
 instance_class: F4_1G
 
 handlers:
 - url: /static
-  static_dir: aqandu/static
+  static_dir: tetrad/static
   secure: always
 
 - url: /.*
   secure: always
   redirect_http_response_code: 301
   script: auto
+
+- url: /favicon\.ico
+  secure: always
+  static_files: static/favicon.ico
+  upload: static/favicon\.ico
+
+env_variables:
+  TELEMETRY_TABLE_ID: "telemetry.telemetry"
+
+
+  

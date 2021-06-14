@@ -425,7 +425,7 @@ def createModel(sensor_data, latlon_length_scale, elevation_length_scale, time_l
         print("about to save matrix - shape " + str(data_matrix.shape))
         print("about to save matrix - max " + str(torch.max(data_matrix)))
         
-        numpy.savetxt('PM_data.csv', data_matrix, delimiter=',')
+        # numpy.savetxt('PM_data.csv', data_matrix, delimiter=',')
         # numpy.savetxt('latlon_scale.csv', numpy.full([1], latlon_length_scale), delimiter=',')
         # numpy.savetxt('time_scale.csv', numpy.full([1], time_length_scale), delimiter=',')
         # numpy.savetxt('elevation_scale.csv', numpy.full([1], elevation_length_scale), delimiter=',')
