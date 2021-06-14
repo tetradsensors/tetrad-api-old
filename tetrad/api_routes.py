@@ -112,7 +112,76 @@ def liveSensors():
         row_num = 1;
     """
 
-    query_job = bq_client.query(q)
+    # TODO: Tom added this manually as a quick fix to the huge bigquery cost
+    query = """
+    SELECT 
+        * EXCEPT(row_num)
+    FROM
+        (
+            SELECT 
+                *, 
+                ROW_NUMBER() 
+            OVER
+                (
+                    PARTITION BY 
+                        DeviceID 
+                    ORDER BY 
+                        Timestamp DESC
+                ) row_num
+            FROM 
+                (
+                    SELECT 
+                      DeviceID, 
+                      Timestamp,
+                      Source,
+                      Label,
+                      ST_Y(GPS) AS Latitude, 
+                      ST_X(GPS) AS Longitude,
+                      PM2_5
+                    FROM 
+                      `tetrad-296715.telemetry.telemetry`
+                    WHERE 
+                    (
+                      ST_WITHIN(
+                        GPS, 
+                        ST_GeogFromGeoJSON(
+                        '{"type": "Polygon", "coordinates": [[[-111.669412,40.935225],[-111.669412,40.414463],[-112.188516,40.414463],[-112.188516,40.935225],[-111.669412,40.935225]]]}'
+                        )
+                      )
+                      OR 
+                      ST_WITHIN(
+                          GPS, 
+                          ST_GeogFromGeoJSON(
+                              '{"type": "Polygon", "coordinates": [[[-84.87573445821378,35.40651241397787],[-84.87573445821378,34.75294675481935],[-85.69879142670808,34.75294675481935],[-85.69879142670808,35.40651241397787],[-84.87573445821378,35.40651241397787]]]}'
+                          )
+                      )
+                      OR 
+                      ST_WITHIN(
+                          GPS, 
+                          ST_GeogFromGeoJSON(
+                              '{"type": "Polygon", "coordinates": [[[-81.23046857557351,41.79579575367248],[-81.23046857557351,40.83277930855361],[-82.46471686015876,40.83277930855361],[-82.46471686015876,41.79579575367248],[-81.23046857557351,41.79579575367248]]]}'
+                          )
+                      )
+                      OR 
+                      ST_WITHIN(
+                          GPS, 
+                          ST_GeogFromGeoJSON(
+                              '{"type": "Polygon", "coordinates": [[[-94.16206570357167,39.41534400903418],[-94.16206570357167,38.61897675250598],[-95.25615003173336,38.61897675250598],[-95.25615003173336,39.41534400903418],[-94.16206570357167,39.41534400903418]]]}'
+                          )
+                      )
+                      OR
+                      Label = "global"
+                  )
+              AND
+              Source != "PurpleAir"
+              AND
+              Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 15 MINUTE)
+                )
+        )
+    WHERE 
+        row_num = 1;
+    """
+    query_job = bq_client.query(query=query)
     rows = query_job.result()
 
     data = [dict(r) for r in rows]
