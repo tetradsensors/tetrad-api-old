@@ -48,7 +48,7 @@ bq_client = BQClient()
 def liveSensors():
 
     def argParseDelta(delta):
-        delta = delta or (24 * 60)
+        delta = delta or 15
         if delta <= 0:
             raise ArgumentError("Argument 'delta' must be a positive integer (minutes)", 400)
         return delta

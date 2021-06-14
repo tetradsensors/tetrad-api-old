@@ -32,3 +32,5 @@ crt
 local
 .gitsecret/keys/random_seed
 !*.secret
+*.mat
+

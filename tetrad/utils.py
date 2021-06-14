@@ -732,7 +732,7 @@ def queryBuildLabels(labels):
         return "True"
     elif "allgps" in labels:
         regions = [k for k in REGION_INFO.values() if k['enabled']]
-        return f'(IFNULL(Label, "") != "badgps" AND {queryBuildMultipleRegions(regions)}) OR (Label = "global")'
+        return f'(Source != "PurpleAir") AND (IFNULL(Label, "") != "badgps" AND {queryBuildMultipleRegions(regions)}) OR (Label = "global" AND Source != "PurpleAir")'
     elif "tetrad" in labels:
         return 'Source = "Tetrad"'
     elif "purpleair" in labels:
