@@ -185,3 +185,22 @@ There are several routes set up for accessing the data. Here are the names, allo
     ''http://127.0.0.1:8080/api/getEstimateMap?lat_lo=40.733534&lat_hi=40.780421&lon_lo=-111.906754&lon_hi=-111.846383&lat_size=100&lon_size=100&date=2019-01-04T00:08:00Z
     ```
  
+Python modules:
+google-cloud-bigquery
+google-cloud-logging
+flask
+flask-assets
+flask-caching
+python-dotenv
+psutil
+timezonefinder
+torch
+scipy
+pandas
+utm
+matplotlib
+python-dateutil
+gunicorn
+
+
+google-cloud-bigquery google-cloud-logging flask flask-assets flask-caching python-dotenv psutil timezonefinder torch scipy pandas utm matplotlib python-dateutil gunicorn

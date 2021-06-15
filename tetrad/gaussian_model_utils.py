@@ -114,20 +114,20 @@ def assignTimeData(sensor_data, device_location_map, time_offset, time_lo_bound 
 
 
 
-def createSpaceVector(sensor_data):
-    for datum in sensor_data:
-        if datum['ID'] not in device_location_map:
-            device_location_map[datum['ID']] = (datum['utm_x'], datum['utm_y'], datum['Altitude'])
+# def createSpaceVector(sensor_data):
+#     for datum in sensor_data:
+#         if datum['ID'] not in device_location_map:
+#             device_location_map[datum['ID']] = (datum['utm_x'], datum['utm_y'], datum['Altitude'])
 
-    space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
-    for key in device_location_map.keys():
-        loc = device_location_map[key]
-        toadd = numpy.asarray([loc[0], loc[1], loc[2]])
-        toadd = numpy.expand_dims(toadd, axis=0)
-        space_coordinates = numpy.append(space_coordinates, toadd, axis=0)
-        device_location_map[key] = space_coordinates.shape[0] - 1
+#     space_coordinates = numpy.ndarray(shape=(0, 3), dtype=float)
+#     for key in device_location_map.keys():
+#         loc = device_location_map[key]
+#         toadd = numpy.asarray([loc[0], loc[1], loc[2]])
+#         toadd = numpy.expand_dims(toadd, axis=0)
+#         space_coordinates = numpy.append(space_coordinates, toadd, axis=0)
+#         device_location_map[key] = space_coordinates.shape[0] - 1
 
-    return space_coordinates, device_location_map
+#     return space_coordinates, device_location_map
 
 # this builds up the first instance of the device_location_map
 # sucessive calls will process and fill in the time data

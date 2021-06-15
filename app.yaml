@@ -18,9 +18,11 @@
 
 service: sandbox
 
-runtime: python37
+runtime: python38
 
 instance_class: F4_1G
+
+entrypoint: gunicorn -b :$PORT -w 8 main:app
 
 handlers:
 - url: /static

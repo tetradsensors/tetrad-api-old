@@ -23,6 +23,8 @@ log_client = google.cloud.logging.Client()
 log_client.get_default_handler()
 log_client.setup_logging()
 
+print(f'__init__.py called with PID {os.getpid()}')
+
 app = Flask(__name__)
 # app.config.from_object(config)
 app.config["CACHE_TYPE"] = "simple"

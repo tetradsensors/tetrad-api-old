@@ -11,11 +11,15 @@ from flask import request, jsonify
 import re
 import numpy as np
 import logging
+from inspect import currentframe, getframeinfo
+import psutil
 # Find timezone based on longitude and latitude
 from timezonefinder import TimezoneFinder
 
 # Load in .env and set the table name
 load_dotenv()  # Required for compatibility with GCP, can't use pipenv there
+
+print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
 
 # log_client.get_default_handler()
 # log_client.setup_logging()
@@ -553,11 +557,14 @@ def getEstimateMap():
     else:
         area_string = None
 
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     area_model = jsonutils.getAreaModelByLocation(_area_models, lat=lat_hi, lon=lon_lo, string = area_string)
     if area_model == None:
         msg = f"The query location, lat={lat_hi}, lon={lon_lo}, and/or area string {area_string} does not have a corresponding area model"
         return msg, 400
-
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
 
     # app.logger.info((
     #     f"Query parameters: lat_lo={lat_lo} lat_hi={lat_hi}  lon_lo={lon_lo} lon_hi={lon_hi} lat_res={lat_res} lon_res={lon_res}"
@@ -579,8 +586,14 @@ def getEstimateMap():
 #        query_locations_
         return 'UTM not yet supported', 400
 
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     area_model['elevationinterpolator'] = jsonutils.buildAreaElevationInterpolator(area_model['elevationfile'])
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     elevations = area_model['elevationinterpolator'](lon_vector, lat_vector)
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     locations_lon, locations_lat = np.meshgrid(lon_vector, lat_vector)
     query_lats = locations_lat.flatten()
     query_lons= locations_lon.flatten()
@@ -620,8 +633,11 @@ def getEstimateMap():
 #     if not ((zone_num_lo == zone_num_hi) and (zone_let_lo == zone_let_hi)):
 #         return 'Requested region spans UTM zones', 400        
 
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     yPred, yVar, status = computeEstimatesForLocations(query_dates, query_locations, query_elevations, area_model)
-    
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     # yPred, yVar = gaussian_model_utils.estimateUsingModel(
     #     model, locations_lat, locations_lon, elevations, [query_datetime], time_offset)
 
@@ -1213,6 +1229,8 @@ def computeEstimatesForLocations(query_dates, query_locations, query_elevations,
 # radius is in meters, as is the length scale and UTM.    
     radius = SPACE_KERNEL_FACTOR_PADDING*latlon_length_scale
 
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     sensor_data = request_model_data_local(
             query_lats,
             query_lons,
@@ -1220,7 +1238,8 @@ def computeEstimatesForLocations(query_dates, query_locations, query_elevations,
             query_start_datetime - timedelta(hours=TIME_KERNEL_FACTOR_PADDING*time_length_scale),
             query_end_datetime + timedelta(hours=TIME_KERNEL_FACTOR_PADDING*time_length_scale),
             area_model, outlier_filtering)
-
+    print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+    print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
     unique_sensors = {datum['ID'] for datum in sensor_data}
     app.logger.info(f'Loaded {len(sensor_data)} data points for {len(unique_sensors)} unique devices from bgquery.')
 
@@ -1289,6 +1308,8 @@ def computeEstimatesForLocations(query_dates, query_locations, query_elevations,
         return 
     for i in range(len(query_sequence)):
     # step 7, Create Model
+        print(f'*** [{getframeinfo(currentframe()).filename}] [{getframeinfo(currentframe()).lineno}]: {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)}/{os.environ["GAE_MEMORY_MB"]}')
+        print(f'*** Max app process memory: {os.environ["GAE_MEMORY_MB"]}')
         model, time_offset, model_status = gaussian_model_utils.createModel(
             sensor_data, latlon_length_scale, elevation_length_scale, time_length_scale, sensor_sequence[i][0], sensor_sequence[i][1], save_matrices=True)
         # check to see if there is a valid model
