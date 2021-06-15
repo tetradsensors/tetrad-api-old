@@ -142,40 +142,10 @@ def liveSensors():
                       `tetrad-296715.telemetry.telemetry`
                     WHERE 
                     (
-                      ST_WITHIN(
-                        GPS, 
-                        ST_GeogFromGeoJSON(
-                        '{"type": "Polygon", "coordinates": [[[-111.669412,40.935225],[-111.669412,40.414463],[-112.188516,40.414463],[-112.188516,40.935225],[-111.669412,40.935225]]]}'
-                        )
-                      )
-                      OR 
-                      ST_WITHIN(
-                          GPS, 
-                          ST_GeogFromGeoJSON(
-                              '{"type": "Polygon", "coordinates": [[[-84.87573445821378,35.40651241397787],[-84.87573445821378,34.75294675481935],[-85.69879142670808,34.75294675481935],[-85.69879142670808,35.40651241397787],[-84.87573445821378,35.40651241397787]]]}'
-                          )
-                      )
-                      OR 
-                      ST_WITHIN(
-                          GPS, 
-                          ST_GeogFromGeoJSON(
-                              '{"type": "Polygon", "coordinates": [[[-81.23046857557351,41.79579575367248],[-81.23046857557351,40.83277930855361],[-82.46471686015876,40.83277930855361],[-82.46471686015876,41.79579575367248],[-81.23046857557351,41.79579575367248]]]}'
-                          )
-                      )
-                      OR 
-                      ST_WITHIN(
-                          GPS, 
-                          ST_GeogFromGeoJSON(
-                              '{"type": "Polygon", "coordinates": [[[-94.16206570357167,39.41534400903418],[-94.16206570357167,38.61897675250598],[-95.25615003173336,38.61897675250598],[-95.25615003173336,39.41534400903418],[-94.16206570357167,39.41534400903418]]]}'
-                          )
-                      )
-                      OR
-                      Label = "global"
-                  )
-              AND
-              Source != "PurpleAir"
-              AND
-              Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 15 MINUTE)
+                      Label = 'slc_ut' OR Label = 'chatt_tn' OR Label = 'kc_mo' OR Label = 'clev_oh' OR Label = 'global'
+                    )
+                      AND
+                    Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 15 MINUTE)
                 )
         )
     WHERE 
