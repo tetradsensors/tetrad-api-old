@@ -142,7 +142,7 @@ def liveSensors():
                       `tetrad-296715.telemetry.telemetry`
                     WHERE 
                     (
-                      Label = 'slc_ut' OR Label = 'chatt_tn' OR Label = 'kc_mo' OR Label = 'clev_oh' OR Label = 'global'
+                      Label = 'slc_ut' OR Label = 'chatt_tn' OR Label = 'kc_mo' OR Label = 'clev_oh' OR Label = 'global' OR Label = 'pv_ma'
                     )
                       AND
                     Timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 15 MINUTE)
