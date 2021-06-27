@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import pytz
-from flask import request, jsonify
+from flask import request, jsonify, render_template
 import functools
 from google.cloud.bigquery import Client as BQClient, QueryJobConfig, ScalarQueryParameter
 from tetrad import app, cache, admin_utils, limiter, utils
@@ -40,6 +40,13 @@ def handle_nodata_error(error):
 
 
 bq_client = BQClient()
+
+@app.route('/')
+def home():
+    '''
+    Documentation lives here
+    '''
+    return render_template('api_docs.html')
 
 # https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
