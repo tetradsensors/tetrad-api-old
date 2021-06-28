@@ -16,7 +16,7 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/python/runtime
 # for details.
 
-service: backend
+service: sandbox
 
 runtime: python38
 

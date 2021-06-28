@@ -9,9 +9,9 @@
  
  <head>
      <meta charset="utf-8">
-     <title>API - Documentation</title>
+     <title>Tetrad API - Documentation</title>
      <meta name="description" content="">
-     <meta name="author" content="ticlekiwi">
+     <meta name="author" content="Tetrad Sensor Network Solutions, LLC">
  
      <meta http-equiv="cleartype" content="on">
      <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -30,7 +30,7 @@
  <body class="one-content-column-version">
  <div class="left-menu">
      <div class="content-logo">
-         <img alt="platform by Emily van den Heever from the Noun Project" title="platform by Emily van den Heever from the Noun Project" src="images/logo.png" height="32" />
+         <img alt="Tetrad API Documentation" title="Tetrad API Documentation" src="static/img/tetrad_logo.png" height="32" />
          <span>API Documentation</span>
      </div>
      <div class="content-menu">
@@ -38,12 +38,27 @@
              <li class="scroll-to-link active" data-target="get-started">
                  <a>GET STARTED</a>
              </li>
-             <li class="scroll-to-link" data-target="get-characters">
-                 <a>Get Characters</a>
+             <li class="scroll-to-link" data-target="getSensorData">
+                 <a>getSensorData</a>
              </li>
-             <li class="scroll-to-link" data-target="errors">
-                 <a>Errors</a>
+             <li class="scroll-to-link" data-target="getLiveSensors">
+                 <a>getLiveSensors</a>
              </li>
+             <li class="scroll-to-link" data-target="getTimeAggregateData">
+                <a>getTimeAggregateData</a>
+            </li>
+            <li class="scroll-to-link" data-target="getLocalSensorData">
+                <a>getLocalSensorData</a>
+            </li>
+            <li class="scroll-to-link" data-target="getEstimateMap">
+                <a>getEstimateMap</a>
+            </li>
+            <li class="scroll-to-link" data-target="getEstimateAtLocation">
+                <a>getEstimateAtLocation</a>
+            </li>
+            <li class="scroll-to-link" data-target="getEstimateAtLocations">
+                <a>getEstimateAtLocations</a>
+            </li>
          </ul>
      </div>
  </div>
@@ -54,17 +69,17 @@
          <div class="overflow-hidden content-section" id="content-get-started">
              <h1 id="get-started">Get started</h1>
              <p>
-                 The Westeros API provides programmatic access to read Game of Thrones data. Retrieve a character, provide an oauth connexion, retrieve a familly, filter them, etc.
-             </p>
-             <p>
-                 To use this API, you need an <strong>API key</strong>. Please contact us at <a href="mailto:contact@tetradsensors.com">contact@tetradsensors.com</a> to get your own API key.
+                Our API does not currently require an API key, but that will soon change. Stay posted for updates. If you request too much data at once, the call will time out and return a 5XX error. 
              </p>
          </div>
+
          <div class="overflow-hidden content-section" id="content-get-characters">
-             <h2 id="get-characters">get characters</h2>
+             <h2 id="getSensorData">getSensorData</h2>
              <p>
-                 To get characters you need to make a POST call to the following url :<br>
-                 <code class="higlighted">http://api.westeros.com/character/get</code>
+                 <code class="highlighted">https://api.tetradsensors.com/getSensorData?startTime=2021-06-01T13:00:00Z&endTime=2021-06-11T13:15:00Z&sensorSource=Tetrad&areaModel=slc_ut</code>
+             </p>
+             <p>
+                Get sensor data in a region for a given period of time. 
              </p>
              <br>
              <h4>QUERY PARAMETERS</h4>
@@ -72,95 +87,383 @@
                  <thead>
                  <tr>
                      <th>Field</th>
-                     <th>Type</th>
+                     <th>Required</th>
                      <th>Description</th>
                  </tr>
                  </thead>
                  <tbody>
                  <tr>
-                     <td>secret_key</td>
-                     <td>String</td>
-                     <td>Your API key.</td>
+                     <td>startTime</td>
+                     <td>Required</td>
+                     <td>Start datetime in zulu time with format 2018-01-03T20:00:00Z</td>
                  </tr>
                  <tr>
-                     <td>search</td>
-                     <td>String</td>
-                     <td>(optional) A search word to find character by name.</td>
+                     <td>endTime</td>
+                     <td>Required</td>
+                     <td>End datetime as above</td>
                  </tr>
                  <tr>
-                     <td>house</td>
-                     <td>String</td>
+                     <td>sensorSource</td>
+                     <td>Optional</td>
                      <td>
-                         (optional) a string array of houses:
+                        The particular kind or owner of sensor to be included. Valid options defined in the <code class="highlighted">area_params.json</code> file. Default is all sources. A nonexistent source will return an empty data list.
                      </td>
                  </tr>
                  <tr>
-                     <td>alive</td>
-                     <td>Boolean</td>
+                     <td>id</td>
+                     <td>Optional</td>
                      <td>
-                         (optional) a boolean to filter alived characters
+                        A particular sensor id. Default is all. A nonexistent id will return an empty data list. 
                      </td>
                  </tr>
                  <tr>
-                     <td>gender</td>
-                     <td>String</td>
+                     <td>noCorrection</td>
+                     <td>Optional</td>
                      <td>
-                         (optional) a string to filter character by gender:<br> m: male<br> f: female
+                        If included as a parameter the results are not corrected for calibration factors. This overrides the default of applying correction to all data.
                      </td>
                  </tr>
                  <tr>
-                     <td>offset</td>
-                     <td>Integer</td>
-                     <td>(optional - default: 0) A cursor for use in pagination. Pagination starts offset the specified offset.</td>
-                 </tr>
-                 <tr>
-                     <td>limit</td>
-                     <td>Integer</td>
-                     <td>(optional - default: 10) A limit on the number of objects to be returned, between 1 and 100.</td>
-                 </tr>
-                 </tbody>
-             </table>
-         </div>
-         <div class="overflow-hidden content-section" id="content-errors">
-             <h2 id="errors">Errors</h2>
-             <p>
-                 The Westeros API uses the following error codes:
-             </p>
-             <table>
-                 <thead>
-                 <tr>
-                     <th>Error Code</th>
-                     <th>Meaning</th>
-                 </tr>
-                 </thead>
-                 <tbody>
-                 <tr>
-                     <td>X000</td>
+                     <td>areaModel</td>
+                     <td>Optional</td>
                      <td>
-                         Some parameters are missing. This error appears when you don't pass every mandatory parameters.
-                     </td>
-                 </tr>
-                 <tr>
-                     <td>X001</td>
-                     <td>
-                         Unknown or unvalid <code class="higlighted">secret_key</code>. This error appears if you use an unknow API key or if your API key expired.
-                     </td>
-                 </tr>
-                 <tr>
-                     <td>X002</td>
-                     <td>
-                         Unvalid <code class="higlighted">secret_key</code> for this domain. This error appears if you use an API key non specified for your domain. Developper or Universal API keys doesn't have domain checker.
-                     </td>
-                 </tr>
-                 <tr>
-                     <td>X003</td>
-                     <td>
-                         Unknown or unvalid user <code class="higlighted">token</code>. This error appears if you use an unknow user <code class="higlighted">token</code> or if the user <code class="higlighted">token</code> expired.
+                         Limits the query to any one area model[s] specified in the <code>area_params.json</code> file. Default is all. A nonexistent area model string will return an empty data list. 
                      </td>
                  </tr>
                  </tbody>
              </table>
          </div>
+         <div class="overflow-hidden content-section" id="content-get-characters">
+            <h2 id="getLiveSensors">getLiveSensors</h2>
+            <p>
+                <code class="highlighted">https://api.tetradsensors.com/getLiveSensors?sensorSource=Tetrad&areaModel=slc_ut&noCorrection&flagOutliers</code>
+            </p>
+            <p>
+               Get an average of the last 15 minutes of data. 
+            </p>
+            <br>
+            <h4>QUERY PARAMETERS</h4>
+            <table>
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>sensorSource</td>
+                    <td>Optional</td>
+                    <td>
+                       The particular kind or owner of sensor to be included. Valid options defined in the <code class="highlighted">area_params.json</code> file. Default is all sources. A nonexistent source will return an empty data list.
+                    </td>
+                </tr>
+                <tr>
+                    <td>noCorrection</td>
+                    <td>Optional</td>
+                    <td>
+                       If included as a parameter the results are not corrected for calibration factors. This overrides the default of applying correction to all data.
+                    </td>
+                </tr>
+                <tr>
+                    <td>areaModel</td>
+                    <td>Optional</td>
+                    <td>
+                        Limits the query to any one area model[s] specified in the <code>area_params.json</code> file. Default is all. A nonexistent area model string will return an empty data list. 
+                    </td>
+                </tr>
+                <tr>
+                    <td>flagOutliers</td>
+                    <td>Optional</td>
+                    <td>
+                        If this parameter is given, then each measurement has an associated "status" entry in the record that indicates whether the measurement has been identified as an outlier using th emean absolute deviation method (MAD). 
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="overflow-hidden content-section" id="content-get-characters">
+            <h2 id="getTimeAggregateData">getTimeAggregateData</h2>
+            <p>
+                <code class="highlighted">https://api.tetradsensors.com/getTimeAggregateData?startTime=2021-06-01T13:00:00Z&endTime=2021-06-11T13:15:00Z&function=mean&sensorSource=Tetrad&areaModel=slc_ut</code>
+            </p>
+            <p>
+               Get aggregated sensor data. 
+            </p>
+            <br>
+            <h4>QUERY PARAMETERS</h4>
+            <table>
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>startTime</td>
+                    <td>Required</td>
+                    <td>Start datetime in zulu time with format 2018-01-03T20:00:00Z</td>
+                </tr>
+                <tr>
+                    <td>endTime</td>
+                    <td>Required</td>
+                    <td>End datetime as above</td>
+                </tr>
+                <tr>
+                    <td>function</td>
+                    <td>Required</td>
+                    <td>One of: mean, min, max</td>
+                </tr>
+                <tr>
+                    <td>groupBy</td>
+                    <td>Optional</td>
+                    <td>One of: id, sensorSource, or area. Default is to apply the function over all sensors at the specified times/intervals</td>
+                </tr>
+                <tr>
+                    <td>timeInterval</td>
+                    <td>Optional</td>
+                    <td>The amount of time, in minutes, over which to apply the function/aggregation. Default is 60 minutes.</td>
+                </tr>
+                <tr>
+                    <td>sensorSource</td>
+                    <td>Optional</td>
+                    <td>
+                       The particular kind or owner of sensor to be included. Valid options defined in the <code class="highlighted">area_params.json</code> file. Default is all sources. A nonexistent source will return an empty data list.
+                    </td>
+                </tr>
+                <tr>
+                    <td>id</td>
+                    <td>Optional</td>
+                    <td>
+                       A particular sensor id. Default is all. A nonexistent id will return an empty data list. 
+                    </td>
+                </tr>
+                <tr>
+                    <td>applyCorrection</td>
+                    <td>Optional</td>
+                    <td>
+                        If included as a parameter the results are corrected for calibration factors.  This overrides the default of not applying correction.  If correction is turned on, then sensors will also be grouped by area and sensormodel (these are required for corrections).  
+                    </td>
+                </tr>
+                <tr>
+                    <td>areaModel</td>
+                    <td>Optional</td>
+                    <td>
+                        Limits the query to any one area model[s] specified in the <code>area_params.json</code> file. Default is all. A nonexistent area model string will return an empty data list. 
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="overflow-hidden content-section" id="content-get-characters">
+            <h2 id="getLocalSensorData">getLocalSensorData</h2>
+            <p>
+                <code class="highlighted">https://api.tetradsensors.com/getLocalSensorData?startTime=2021-06-01T13:00:00Z&endTime=2021-06-11T13:15:00Z&lat=41.23&lon=-112.46&radius=1000</code>
+            </p>
+            <p>
+               Get aggregated sensor data. 
+            </p>
+            <br>
+            <h4>QUERY PARAMETERS</h4>
+            <table>
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>startTime</td>
+                    <td>Required</td>
+                    <td>Start datetime in zulu time with format 2018-01-03T20:00:00Z</td>
+                </tr>
+                <tr>
+                    <td>endTime</td>
+                    <td>Required</td>
+                    <td>End datetime as above</td>
+                </tr>
+                <tr>
+                    <td>lat</td>
+                    <td>Required</td>
+                    <td>Latitude of GPS coordinate</td>
+                </tr>
+                <tr>
+                    <td>lon</td>
+                    <td>Required</td>
+                    <td>Longitude of GPS coordinate</td>
+                </tr>
+                <tr>
+                    <td>radius</td>
+                    <td>Required</td>
+                    <td>Radius, im meters, for query region</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="overflow-hidden content-section" id="content-get-characters">
+            <h2 id="getEstimateMap">getEstimateMap</h2>
+            <p>
+                <code class="highlighted">https://api.tetradsensors.com/getEstimateMap?timeInterval=0.25&time=2021-06-01T00:00:00Z&latLo=41.2&latHi=42.4&lonLo=-112.8&lonHi=-111.1&latSize=50&lonSize=50</code>
+            </p>
+            <p>
+               Get a map of interpolated PM2.5 values for the given region. 
+            </p>
+            <br>
+            <h4>QUERY PARAMETERS</h4>
+            <table>
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>startTime</td>
+                    <td>Required</td>
+                    <td>Start datetime in zulu time with format 2018-01-03T20:00:00Z</td>
+                </tr>
+                <tr>
+                    <td>endTime</td>
+                    <td>Required</td>
+                    <td>End datetime as above</td>
+                </tr>
+                <tr>
+                    <td>timeInterval</td>
+                    <td>Required</td>
+                    <td>
+                        The time between individual maps, given in hours (or parts of hours, e.g. 0.25 is 15 minutes)
+                    </td>
+                </tr>
+                <tr>
+                    <td>time</td>
+                    <td>Required</td>
+                    <td>
+                        The datetime to take a single-time estimate map (grid). Required if start/end are not specified. This parameter also accepts "time=now" to get an estimate at the current time. 
+                    </td>
+                </tr>
+                <tr>
+                    <td>latLo, latHi, lonLo, lonHi</td>
+                    <td>Required</td>
+                    <td>
+                       Upper and lower GPS bounds of the lat/lon box that defines the extent of the map. 
+                    </td>
+                </tr>
+                <tr>
+                    <td>latSize, lonSize</td>
+                    <td>Required</td>
+                    <td>
+                        Integers that define the number of grid points that will be estimated along the lat and lon directions for the map. 
+                    </td>
+                </tr>
+                <tr>
+                    <td>areaModel</td>
+                    <td>Optional</td>
+                    <td>
+                        Specifies a particular area model to use for this query. The default is to find an arae model that contain sth e upper-right corner of the box. 
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="overflow-hidden content-section" id="content-get-characters">
+            <h2 id="getEstimateAtLocation">getEstimateAtLocation</h2>
+            <p>
+                <code class="highlighted">https://api.tetradsensors.com/getEstimateAtLocation?startTime=2021-06-01T13:00:00Z&endTime=2021-06-11T13:15:00Z&timeInterval=0.25&lat=41.23&lon=-112.46&radius=1000</code>
+            </p>
+            <p>
+               Get a PM2.5 estimate at the specified location. 
+            </p>
+            <br>
+            <h4>QUERY PARAMETERS</h4>
+            <table>
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>startTime</td>
+                    <td>Required</td>
+                    <td>Start datetime in zulu time with format 2018-01-03T20:00:00Z</td>
+                </tr>
+                <tr>
+                    <td>endTime</td>
+                    <td>Required</td>
+                    <td>End datetime as above</td>
+                </tr>
+                <tr>
+                    <td>timeInterval</td>
+                    <td>Required</td>
+                    <td>
+                        The time between individual maps, given in hours (or parts of hours, e.g. 0.25 is 15 minutes)
+                    </td>
+                </tr>
+                <tr>
+                    <td>lat, lon</td>
+                    <td>Required</td>
+                    <td>
+                       The latitude and longitude of the estimate. 
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="overflow-hidden content-section" id="content-get-characters">
+            <h2 id="getEstimateAtLocations">getEstimateAtLocations</h2>
+            <p>
+                <code class="highlighted">https://api.tetradsensors.com/getEstimateAtLocations?startTime=2021-06-01T13:00:00Z&endTime=2021-06-11T13:15:00Z&timeInterval=0.25&lats=41.23,41.24&lons=-112.46,112.22</code>
+            </p>
+            <p>
+               Get a map of interpolated PM2.5 values for the given locations. 
+            </p>
+            <br>
+            <h4>QUERY PARAMETERS</h4>
+            <table>
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>startTime</td>
+                    <td>Required</td>
+                    <td>Start datetime in zulu time with format 2018-01-03T20:00:00Z</td>
+                </tr>
+                <tr>
+                    <td>endTime</td>
+                    <td>Required</td>
+                    <td>End datetime as above</td>
+                </tr>
+                <tr>
+                    <td>timeInterval</td>
+                    <td>Required</td>
+                    <td>
+                        The time between individual maps, given in hours (or parts of hours, e.g. 0.25 is 15 minutes)
+                    </td>
+                </tr>
+                <tr>
+                    <td>lats, lons</td>
+                    <td>Required</td>
+                    <td>
+                       A list, separated by commas, of the latitudes and longitudes of the estimates, respectively
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
      </div>
  </div>
  <!-- Github Corner Ribbon - to remove (Ribbon created with : http://tholman.com/github-corners/ )-->
