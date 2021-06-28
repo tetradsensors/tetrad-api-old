@@ -41,7 +41,7 @@ def handle_nodata_error(error):
 
 bq_client = BQClient()
 
-@app.route('/')
+@app.route('/', subdomain=getenv('SUBDOMAIN_API'))
 def home():
     '''
     Documentation lives here
