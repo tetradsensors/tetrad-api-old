@@ -46,7 +46,8 @@ def home():
     '''
     Documentation lives here
     '''
-    return render_template('api_docs.html')
+    return "API Documentation coming soon... For now, you can visit https://github.com/tetradsensors/tetrad-api"
+    # return render_template('api_docs.html')
 
 # https://api.tetradsensors.com/liveSensors?src=all&field=pm2_5
 @app.route("/liveSensors", methods=["GET"], subdomain=getenv('SUBDOMAIN_API'))
