@@ -31,6 +31,18 @@
 	"humidity":"Humidity",
 	"sensorsource":"'DAQ'",
 	"sensormodel":"'0000'"
+    },
+    "TETRAD_TABLE_ID":{
+	"time":"Timestamp",
+	"id":"DeviceID", 
+	"latitude":"ST_Y(GPS)",
+	"longitude":"ST_X(GPS)",
+	"pm2_5":"PM2_5", 
+	"temp":"Temperature",
+	"humidity":"Humidity",
+	"sensorsource":"'Tetrad'",
+	"sensormodel":"'3003'"
     }
+
 }
 

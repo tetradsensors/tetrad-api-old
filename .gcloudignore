@@ -15,8 +15,19 @@
 
 # Python pycache:
 __pycache__/
+__pycache__
 # Ignored by the build system
 /setup.cfg
 
 Pipfile
 Pipfile.lock
+Pipfile.old
+serve.log
+tox.ini
+.env.default
+requirements.old
+
+# *.mat 
+README.md 
+aqandu/__pycache__
+aqandu/__pycache__/

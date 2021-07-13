@@ -413,7 +413,7 @@ def getLiveSensors():
                     where_string += " AND " + label_string + " = " + "'" + this_area + "'"
 #                    where_string += " AND area_model = " + this_area
             else:
-                column_string += ", " + this_area + "'" + " AS area_model"
+                column_string += ", " + "'" + this_area + "'" + " AS area_model"
 
             where_string += " AND " + source_query
 
@@ -523,7 +523,9 @@ def getLiveSensors():
 
 @app.route("/api/getEstimateMap", methods=["GET"])
 def getEstimateMap():
-
+    """
+    http://localhost:5000/api/getEstimateMap?latHi=40.8207&latLo=40.4816&lonHi=-111.7615&lonLo=-112.159&latSize=5&lonSize=5&time=2021-07-12T00:00:00Z
+    """
     # this species grid positions should be interpolated in UTM coordinates
     # right now (Nov 2020) this is not supported.
     # might be used later in order to build grids of data in UTM coordinates -- this would depend on what the display/visualization code needs
@@ -661,7 +663,8 @@ def getEstimateMap():
             )
 
     return_object['estimates'] = estimates
-    return jsonify(return_object)
+    
+    return jsonify(return_object), 200
     
 
 @app.route("/api/getTimeAggregatedData", methods=["GET"])
@@ -1027,15 +1030,15 @@ def request_model_data_local(lats, lons, radius, start_date, end_date, area_mode
             "time": row.time,
             "PM2_5": row.pm2_5,
             }
-        if 'sensormodel' in row:
+        if 'sensormodel' in row.keys():
             new_row["SensorModel"] = row.sensormodel
         else:
-            new_row["SensorModel"] = "Default"
+            new_row["SensorModel"] = "default"
 
-        if 'sensorsource' in row:
+        if 'sensorsource' in row.keys():
             new_row["SensorModel"] = row.sensorsource
         else:
-            new_row["SensorSource"] = "Default"
+            new_row["SensorSource"] = "default"
 
         # try:
         #     new_row["SensorModel"] = row.sensormodel

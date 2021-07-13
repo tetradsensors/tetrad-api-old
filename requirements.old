@@ -1,0 +1,13 @@
+google-cloud-bigquery
+torch
+scipy
+numpy
+matplotlib
+utm
+cssmin
+flake8
+jsmin
+Flask
+Flask-Assets
+python-dotenv
+flask-caching

@@ -133,6 +133,7 @@ def buildAreaModelsFromJson(json_data):
 
 # note this can be very slow -- need 
 def applyCorrectionFactor(factors, data_timestamp, data, sensor_type, status=False):
+    this_type = "0000"
     if sensor_type in factors:
         this_type = sensor_type
     elif "default" in factors:

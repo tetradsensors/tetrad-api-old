@@ -4,6 +4,8 @@ config.production.py
 .env
 .env.prod
 aqandu/aqandu.json
+tetrad.json
+aqandu/tetrad.json
 
 # Auto generated files
 aqandu/static/.webassets-cache

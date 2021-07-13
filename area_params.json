@@ -1,16 +1,16 @@
 {
-    "Salt_Lake_City":
+    "slc_ut":
     {
-	"Note": "Salt Lake City",
+	"Name":"slc_ut",
+	"Note":"Salt Lake City",
 	"Timezone": "America/Denver",
-	"ID String":["AIRU_TABLE_ID", "PURPLEAIR_TABLE_ID", "DAQ_TABLE_ID"],
-	"Source table map":{"AirU": ["AIRU_TABLE_ID"], "PurpleAir": ["PURPLEAIR_TABLE_ID"], "DAQ": ["DAQ_TABLE_ID"]},
-	"Elevation File":"SLC_elevations.mat",
+	"ID String":["TETRAD_TABLE_ID"],
+	"Elevation File":"/app/slc_ut_elevations.mat",
 	"Boundingbox": [
-	    {"Description": "UL", "Latitude": 41.20, "Longitude":-112.20},
-	    {"Description": "UR", "Latitude": 41.20,"Longitude": -111.63},
-	    {"Description": "LR", "Latitude": 39.2,"Longitude": -111.63},
-	    {"Description": "LL", "Latitude": 39.2,"Longitude": -112.20}
+	    {"Description": "UL", "Latitude": 41.2000, "Longitude":-112.1595},
+	    {"Description": "UR", "Latitude": 41.2000,"Longitude": -111.6300},
+	    {"Description": "LR", "Latitude": 39.2000,"Longitude": -111.6300},
+	    {"Description": "LL", "Latitude": 39.2000,"Longitude": -112.1595}
 	],
 	"Length Scales":[
 	    {
@@ -23,7 +23,6 @@
 	    [
 		{"starttime":"2021-02-05T12:00:00Z","endtime":"2021-02-06T23:00:00Z","slope":1.51,"intercept":2.589,"note":"Dust storm"},
 		{"starttime":"2021-03-06T12:00:00Z","endtime":"2021-02-07T09:00:00Z","slope":1.608,"intercept":1.739,"note":"Dust storm"},
-		{"starttime":"2021-03-01T00:00:00","endtime":"2021-11-01T00:00:00","slope":0.3696,"intercept":3.7520,"note":"Spring/Summer"},
 		{"starttime":"2017-11-01T00:00:00","endtime":"2018-03-01T00:00:00","slope":0.5703,"intercept":2.3418,"note":"Winter"},
 		{"starttime":"2018-03-01T00:00:00","endtime":"2018-06-01T00:00:00","slope":0.3696,"intercept":3.7520,"note":"Spring"},
 		{"starttime":"2018-06-01T00:00:00","endtime":"2018-07-04T00:00:00","slope":0.4372,"intercept":4.1279,"note":"Wildfire"},
@@ -49,37 +48,37 @@
 	    ],
 	    "5003":
 	    [
-		{"starttime":"2021-02-05T12:00:00Z","endtime":"2021-02-06T23:00:00Z","slope":2.139,"intercept":2.323,"note":"Dust storm"},
-		{"starttime":"2021-03-06T12:00:00Z","endtime":"2021-02-07T09:00:00Z","slope":1.527,"intercept":1.506,"note":"Dust storm"},
-		{"starttime":"2021-03-01T00:00:00","endtime":"2021-11-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring/Summer"},
-		{"starttime":"2017-11-01T00:00:00","endtime":"2018-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"},
-		{"starttime":"2018-03-01T00:00:00","endtime":"2018-06-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring"},
-		{"starttime":"2018-06-01T00:00:00","endtime":"2018-07-04T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2018-07-04T00:00:00","endtime":"2018-07-05T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
-		{"starttime":"2018-07-05T00:00:00","endtime":"2018-07-24T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2018-07-24T00:00:00","endtime":"2018-07-25T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
-		{"starttime":"2018-07-25T00:00:00","endtime":"2018-11-01T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2018-11-01T00:00:00","endtime":"2019-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"},
-		{"starttime":"2019-03-01T00:00:00","endtime":"2019-06-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring"},
-		{"starttime":"2019-06-01T00:00:00","endtime":"2019-07-04T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2019-07-04T00:00:00","endtime":"2019-07-05T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
-		{"starttime":"2019-07-05T00:00:00","endtime":"2019-07-24T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2019-07-24T00:00:00","endtime":"2019-07-25T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
-		{"starttime":"2019-07-25T00:00:00","endtime":"2019-11-01T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2019-11-01T00:00:00","endtime":"2020-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"},
-		{"starttime":"2020-03-01T00:00:00","endtime":"2020-06-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring"},
-		{"starttime":"2020-06-01T00:00:00","endtime":"2020-07-04T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2020-07-04T00:00:00","endtime":"2020-07-05T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
-		{"starttime":"2020-07-05T00:00:00","endtime":"2020-07-24T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2020-07-24T00:00:00","endtime":"2020-07-25T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
-		{"starttime":"2020-07-25T00:00:00","endtime":"2020-11-01T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
-		{"starttime":"2020-11-01T00:00:00","endtime":"2021-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"}
+	    {"starttime":"2021-02-05T12:00:00Z","endtime":"2021-02-06T23:00:00Z","slope":2.139,"intercept":2.323,"note":"Dust storm"},
+	    {"starttime":"2021-03-06T12:00:00Z","endtime":"2021-02-07T09:00:00Z","slope":1.527,"intercept":1.506,"note":"Dust storm"},
+	    {"starttime":"2017-11-01T00:00:00","endtime":"2018-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"},
+	     {"starttime":"2018-03-01T00:00:00","endtime":"2018-06-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring"},
+	     {"starttime":"2018-06-01T00:00:00","endtime":"2018-07-04T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2018-07-04T00:00:00","endtime":"2018-07-05T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
+	     {"starttime":"2018-07-05T00:00:00","endtime":"2018-07-24T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2018-07-24T00:00:00","endtime":"2018-07-25T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
+	     {"starttime":"2018-07-25T00:00:00","endtime":"2018-11-01T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2018-11-01T00:00:00","endtime":"2019-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"},
+	     {"starttime":"2019-03-01T00:00:00","endtime":"2019-06-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring"},
+	     {"starttime":"2019-06-01T00:00:00","endtime":"2019-07-04T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2019-07-04T00:00:00","endtime":"2019-07-05T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
+	     {"starttime":"2019-07-05T00:00:00","endtime":"2019-07-24T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2019-07-24T00:00:00","endtime":"2019-07-25T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
+	     {"starttime":"2019-07-25T00:00:00","endtime":"2019-11-01T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2019-11-01T00:00:00","endtime":"2020-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"},
+	     {"starttime":"2020-03-01T00:00:00","endtime":"2020-06-01T00:00:00","slope":0.3199,"intercept":3.3628,"note":"Spring"},
+	     {"starttime":"2020-06-01T00:00:00","endtime":"2020-07-04T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2020-07-04T00:00:00","endtime":"2020-07-05T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
+	     {"starttime":"2020-07-05T00:00:00","endtime":"2020-07-24T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2020-07-24T00:00:00","endtime":"2020-07-25T00:00:00","slope":1.3340,"intercept":-4.8112,"note":"Fireworks"},
+	     {"starttime":"2020-07-25T00:00:00","endtime":"2020-11-01T00:00:00","slope":0.3056,"intercept":3.6560,"note":"Wildfire"},
+	     {"starttime":"2020-11-01T00:00:00","endtime":"2021-03-01T00:00:00","slope":0.697706164,"intercept":1.241653337,"note":"Winter"}
 	    ],
 	    "3003":
 	    [
 		{"starttime":"2021-02-05T12:00:00Z","endtime":"2021-02-06T23:00:00Z","slope":2.152,"intercept":3.891,"note":"Dust storm"},
 		{"starttime":"2021-03-06T12:00:00Z","endtime":"2021-02-07T09:00:00Z","slope":3.541,"intercept":1.284,"note":"Dust storm"},
-		{"starttime":"2021-03-01T00:00:00","endtime":"2021-11-01T00:00:00","slope":0.4812,"intercept":2.9235,"note":"Spring/Summer"},
+		{"starttime":"2021-03-01T00:00:00","endtime":"2021-06-01T00:00:00","slope":0.4812,"intercept":2.9235,"note":"Spring"},
+
 		{"starttime":"2017-11-01T00:00:00","endtime":"2018-03-01T00:00:00","slope":0.4860,"intercept":2.9252,"note":"Winter"},
 		{"starttime":"2018-03-01T00:00:00","endtime":"2018-06-01T00:00:00","slope":0.4812,"intercept":2.9235,"note":"Spring"},
 		{"starttime":"2018-06-01T00:00:00","endtime":"2018-07-04T00:00:00","slope":0.5208,"intercept":4.8943,"note":"Wildfire"},
@@ -101,8 +100,153 @@
 		{"starttime":"2020-07-05T00:00:00","endtime":"2020-07-24T00:00:00","slope":0.5208,"intercept":4.8943,"note":"Wildfire"},
 		{"starttime":"2020-07-24T00:00:00","endtime":"2020-07-25T00:00:00","slope":2.3238,"intercept":2.9909,"note":"Fireworks"},
 		{"starttime":"2020-07-25T00:00:00","endtime":"2020-11-01T00:00:00","slope":0.5208,"intercept":4.8943,"note":"Wildfire"},
-		{"starttime":"2020-11-01T00:00:00","endtime":"2021-03-01T00:00:00","slope":0.4860,"intercept":2.9252,"note":"Winter"}
+		{"starttime":"2020-11-01T00:00:00","endtime":"2021-03-01T00:00:00","slope":0.4860,"intercept":2.9252,"note":"Winter"},
+		{"starttime":"2021-03-01T00:00:00","endtime":"2021-06-01T00:00:00","slope":0.4812,"intercept":2.9235,"note":"Spring"},
+		{"starttime":"2021-06-01T00:00:00","endtime":"2021-07-04T00:00:00","slope":0.5208,"intercept":4.8943,"note":"Wildfire"},
+		{"starttime":"2021-07-04T00:00:00","endtime":"2021-07-05T00:00:00","slope":2.3238,"intercept":2.9909,"note":"Fireworks"},
+		{"starttime":"2021-07-05T00:00:00","endtime":"2021-07-24T00:00:00","slope":0.5208,"intercept":4.8943,"note":"Wildfire"},
+		{"starttime":"2021-07-24T00:00:00","endtime":"2021-07-25T00:00:00","slope":2.3238,"intercept":2.9909,"note":"Fireworks"},
+		{"starttime":"2021-07-25T00:00:00","endtime":"2021-11-01T00:00:00","slope":0.5208,"intercept":4.8943,"note":"Wildfire"},
+		{"starttime":"2021-11-01T00:00:00","endtime":"2022-03-01T00:00:00","slope":0.4860,"intercept":2.9252,"note":"Winter"}
 	    ]
 	}
+    },
+    "clev_oh":
+    {
+	"Name":"clev_oh",
+	"Note": "Cleveland - temporary",
+	"Timezone": "America/Chicago",
+	"ID String":["TETRAD_TABLE_ID"],
+	"Elevation File":"/app/clev_oh_elevations.mat",
+	"Boundingbox": [
+	    {"Description": "UL", "Latitude":41.5488,"Longitude":-81.9273},
+	    {"Description": "UR", "Latitude":41.5488,"Longitude":-81.4178},
+	    {"Description": "LR", "Latitude":41.3357,"Longitude":-81.4178},
+	    {"Description": "LL", "Latitude":41.3357,"Longitude":-81.9273}
+	],
+	"Length Scales":[
+	    {
+		"starttime": "default",
+		"endtime": "default","Space": 4300, "Elevation":30, "Time": 0.25
+	    }
+	],
+	"Correction Factors":
+	{
+	    "PMS5003":
+	    [
+		{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS5003"}
+	    ],
+	    "PMS3003":
+	    [
+		{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS3003"}
+	    ],
+	    "default":
+	    [
+		{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for unknown sensor type"}
+	    ]
+	}
+    },
+    "kc_mo":
+    {
+	"Name":"kc_mo",
+	"Note": "Kansas City - temporary",
+	"Timezone": "America/Chicago",
+	"ID String":["TETRAD_TABLE_ID"],
+	"Elevation File":"/app/kc_mo_elevations.mat",
+	"Boundingbox": [
+	    {"Description": "UL", "Latitude": 39.1964, "Longitude":-94.7793},
+		{"Description": "UR", "Latitude": 39.1964, "Longitude":-94.4706},
+		{"Description": "LR", "Latitude": 38.8855, "Longitude":-94.4706},
+		{"Description": "LL", "Latitude": 38.8855, "Longitude":-94.7793}
+	],
+	"Length Scales":[
+	    {
+		"starttime": "default",
+		"endtime": "default","Space": 4300, "Elevation":30, "Time": 0.25
+	    }
+	],
+	"Correction Factors":
+	{
+	    "PMS5003":
+	    [
+		{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS5003"}
+	    ],
+	    "PMS3003":
+	    [
+		{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS3003"}
+	    ],
+	    "default":
+	    [
+		{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for unknown sensor type"}
+	    ]
+	}
+    },
+    "chatt_tn":
+    {
+		"Name":"chatt_tn",
+		"Note": "Chattanooga - temporary",
+		"Timezone": "America/New_York",
+		"ID String":["TETRAD_TABLE_ID"],
+		"Elevation File":"/app/chatt_tn_elevations.mat",
+		"Boundingbox": [
+			{"Description": "UL", "Latitude": 35.0900, "Longitude": -85.3774},
+			{"Description": "UR", "Latitude": 35.0900, "Longitude": -85.2100}, 
+			{"Description": "LR", "Latitude": 34.9852, "Longitude": -85.2100}, 
+			{"Description": "LL", "Latitude": 34.9852, "Longitude": -85.3774}
+		],
+		"Length Scales":[
+			{
+			"starttime": "default", "endtime": "default","Space": 4300, "Elevation":30, "Time": 0.25
+			}
+		],
+		"Correction Factors":
+		{
+			"PMS5003":
+			[
+			{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS5003"}
+			],
+			"PMS3003":
+			[
+			{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS3003"}
+			],
+			"default":
+			[
+			{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for unknown sensor type"}
+			]
+		}
+    },
+	"pv_ma":
+    {
+		"Name":"pv_ma",
+		"Note": "Pioneer Valley, Massachusetts",
+		"Timezone": "America/New_York",
+		"ID String":["TETRAD_TABLE_ID"],
+		"Elevation File":"/app/pv_ma_elevations.mat",
+		"Boundingbox": [
+			{"Description": "UL", "Latitude": 42.2406, "Longitude": -72.6644},
+			{"Description": "UR", "Latitude": 42.2406, "Longitude": -72.4680}, 
+			{"Description": "LR", "Latitude": 42.0614, "Longitude": -72.4680}, 
+			{"Description": "LL", "Latitude": 42.0614, "Longitude": -72.6644}
+		],
+		"Length Scales":[
+			{
+			"starttime": "default", "endtime": "default","Space": 4300, "Elevation":30, "Time": 0.25
+			}
+		],
+		"Correction Factors":
+		{
+			"PMS5003":
+			[
+			{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS5003"}
+			],
+			"PMS3003":
+			[
+			{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for PMS3003"}
+			],
+			"default":
+			[
+			{"starttime":"default","endtime":"default","slope":0.52356,"intercept":1.5707,"note":"Correction: EPA default for unknown sensor type"}
+			]
+		}
     }
 }
