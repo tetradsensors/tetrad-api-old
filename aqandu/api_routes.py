@@ -585,7 +585,8 @@ def getEstimateMap():
         
 # build the grid of query locations
     if not UTM:
-        lon_vector, lat_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_res, lon_res)
+        # lon_vector, lat_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_res, lon_res)
+        lat_vector, lon_vector = utils.interpolateQueryLocations(lat_lo, lat_hi, lon_lo, lon_hi, lat_size, lon_size)
 #        locations_UTM = utm.from_latlon(query_locations_latlon)
     else:
         # step 7.5, convert query box to UTM -- do the two far corners and hope for the best
