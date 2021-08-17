@@ -381,7 +381,7 @@ def getSensorLocations():
     return jsonify(sensor_list)
 
 @app.route("/api/getLiveSensors", methods=["GET"])
-# @cache.cached(timeout=59, query_string=True)
+@cache.cached(timeout=15, query_string=True)
 def getLiveSensors():
     # Get the arguments from the query string
     sensor_source = request.args.get('sensorSource')
