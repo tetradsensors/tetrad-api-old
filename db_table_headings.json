@@ -40,8 +40,9 @@
 	"pm2_5":"PM2_5", 
 	"temp":"Temperature",
 	"humidity":"Humidity",
-	"sensorsource":"'Tetrad'",
-	"sensormodel":"'3003'"
+	"sensorsource":"Source",
+	"sensormodel":"PMSModel",
+	"label": "Label"
     }
 
 }

@@ -209,11 +209,11 @@ def applyCorrectionFactor(factors, data_timestamp, data, sensor_type):
         factor_start = factor['start_date']
         factor_end = factor['end_date']
         if factor_start <= data_timestamp and factor_end > data_timestamp:
-            if sensor_type == '1003':
+            if sensor_type == 'PMS1003':
                 return data * factor['1003_slope'] + factor['1003_intercept']
-            elif sensor_type == '3003':
+            elif sensor_type == 'PMS3003':
                 return data * factor['3003_slope'] + factor['3003_intercept']
-            elif sensor_type == '5003':
+            elif sensor_type == 'PMS5003':
                 return data * factor['5003_slope'] + factor['5003_intercept']
 ###  print('\nNo correction factor found for ', data_timestamp)
 #  no correction factor will be considered identity

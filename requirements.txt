@@ -1,7 +1,8 @@
+pyarrow
+pandas
 google-cloud-bigquery
 torch
 scipy
-pandas
 numpy
 matplotlib
 flask
