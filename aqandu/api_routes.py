@@ -943,6 +943,8 @@ def getTimeAggregatedData():
         ]
     )
 
+    print(query)
+    
     # Run the query and collect the result
     measurements = []
     query_job = bq_client.query(query, job_config=job_config)
