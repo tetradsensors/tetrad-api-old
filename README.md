@@ -185,3 +185,22 @@ There are several routes set up for accessing the data. Here are the names, allo
     ''http://127.0.0.1:8080/api/getEstimateMap?lat_lo=40.733534&lat_hi=40.780421&lon_lo=-111.906754&lon_hi=-111.846383&lat_size=100&lon_size=100&date=2019-01-04T00:08:00Z
     ```
  
+ ### Tom's Notes
+ Cloud Run:
+
+New hosting service for our backend (tetrad-api). It uses Docker. We are switching from app engine to cloud run because you can create larger instances with more memory, which we need for modeling. 
+
+```bash
+docker build -t tetrad_live_site:latest .
+```
+```bash
+docker run -it --rm -p 8080:8080 tetrad_live_site
+```
+```bash
+gcloud builds submit --config cloudbuild.yaml .
+```
+
+Notes
+* A Docker image is first built and stored in `gcr.io/$PROJECT_ID/[service-name]`. Ours is named `tetrad-api`. 
+* After the image is built, it is pushed to Cloud Run
+* The above two steps are configured in a file called `cloudbuild.yaml`. You can do a lot of stuff in here (like everything that's in the `Dockerfile`, but I do it all in the `Dockerfile` because then I can test it locally.Then just use `cloudbuild.yaml` to run the commands. Another step taken by `cloudbuild.yaml` is to used a cached Docker image for subsequent builds to speed things up. 
