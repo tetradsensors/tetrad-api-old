@@ -1,6 +1,7 @@
 pyarrow
 pandas
 google-cloud-bigquery
+google-cloud-storage
 torch
 scipy
 numpy
@@ -8,6 +9,7 @@ matplotlib
 flask
 flask-assets
 flask-caching
+flask-restful
 utm
 python-dotenv
 timezonefinder
