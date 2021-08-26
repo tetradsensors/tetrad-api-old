@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import common.gaussian_model_utils
 import common.jsonutils
 import common.utils
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 import pytz
 import utm
 import json
@@ -12,6 +12,7 @@ from scipy import interpolate
 from scipy.io import loadmat
 import csv
 import logging
+import collections.abc
 
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -32,6 +33,20 @@ DEFAULT_OUTLIER_LEVEL = 5.0
 # level below which outliers won't be removed 
 MIN_OUTLIER_LEVEL = 10.0
 
+def update_dict_recursive(d, u):
+    for k, v in u.items():
+        if v is None:
+            continue
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update_dict_recursive(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+def getConfigData():
+    if not hasattr(getConfigData, 'config'):
+        getConfigData.config = json.load(open('config.json', 'r'))
+    return getConfigData.config
 
 def validateDate(dateString):
     """Check if date string is valid"""
@@ -313,6 +328,11 @@ def getBigQueryClient():
         getBigQueryClient.client = bigquery.Client()
     return getBigQueryClient.client
 
+def getStorageClient():
+    if not hasattr(getStorageClient, 'client'):
+        getStorageClient.client = storage.Client()
+    return getStorageClient.client
+
 def estimateMedianDeviation(start_date, end_date, lat_lo, lat_hi, lon_lo, lon_hi, area_model):
     with open('common/db_table_headings.json') as json_file:
         db_table_headings = json.load(json_file)
@@ -497,10 +517,10 @@ def request_model_data_local(lats, lons, radius, start_date, end_date, area_mode
     # Modified by Ross for
     ## using a bounding box in lat-lon
     if isinstance(lats, (float)):
-            if isinstance(lons, (float)):
-                    lat_lo, lat_hi, lon_lo, lon_hi = common.utils.latlonBoundingBox(lats, lons, radius)
-            else:
-                    return "lats,lons data structure misalignment in request sensor data", 400
+        if isinstance(lons, (float)):
+                lat_lo, lat_hi, lon_lo, lon_hi = common.utils.latlonBoundingBox(lats, lons, radius)
+        else:
+                return "lats,lons data structure misalignment in request sensor data", 400
     elif (isinstance(lats, (np.ndarray)) and isinstance(lons, (np.ndarray))):
         if not lats.shape == lons.shape:
             return "lats,lons data data size error", 400

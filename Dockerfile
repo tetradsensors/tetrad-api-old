@@ -28,7 +28,7 @@ EXPOSE 8080
 
 ENV FLASK_APP="main.py"
 ENV FLASK_ENV="development"
-RUN [ "flask", "assets", "build" ]
+# RUN [ "flask", "assets", "build" ]
 
 # Run the web service on container startup.
 # CMD [ "python", "main.py" ]

@@ -204,3 +204,8 @@ Notes
 * A Docker image is first built and stored in `gcr.io/$PROJECT_ID/[service-name]`. Ours is named `tetrad-api`. 
 * After the image is built, it is pushed to Cloud Run
 * The above two steps are configured in a file called `cloudbuild.yaml`. You can do a lot of stuff in here (like everything that's in the `Dockerfile`, but I do it all in the `Dockerfile` because then I can test it locally.Then just use `cloudbuild.yaml` to run the commands. Another step taken by `cloudbuild.yaml` is to used a cached Docker image for subsequent builds to speed things up. 
+
+`gcloud builds submit --tag gcr.io/tetrad-296715/tetrad-api-dev .`
+`gcloud run deploy --image gcr.io/tetrad-296715/tetrad-api-dev:latest --region us-central1 --memory 4Gi --allow-unauthenticated --platform managed`
+
+gcloud builds submit --tag gcr.io/tetrad-296715/tetrad-api-dev . && gcloud run deploy --image gcr.io/tetrad-296715/tetrad-api-dev:latest --region us-central1 --memory 4Gi --allow-unauthenticated --platform managed

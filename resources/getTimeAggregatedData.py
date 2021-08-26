@@ -9,21 +9,22 @@ import common.utils
 import common.jsonutils
 import json
 
-# from common.decorators import processPreRequest
+from common.decorators import processPreRequest
 
 arguments = RequestParser()
 arguments.add_argument(URL_PARAMS.START_TIME,       type=datetime_from_iso8601, help=PARAMS_HELP_MESSAGES.START_TIME,         required=True)
 arguments.add_argument(URL_PARAMS.END_TIME,         type=datetime_from_iso8601, help=PARAMS_HELP_MESSAGES.END_TIME,           required=True)
-arguments.add_argument(URL_PARAMS.FUNCTION,         type=function_parse,               help=PARAMS_HELP_MESSAGES.FUNCTION,           required=True)
-arguments.add_argument(URL_PARAMS.GROUP_BY,         type=groupby_parse,                help=PARAMS_HELP_MESSAGES.GROUP_BY,           required=False, default=None)
-arguments.add_argument(URL_PARAMS.TIME_INTERVAL,    type=int,                          help=PARAMS_HELP_MESSAGES.TIME_INTERVAL,      required=False, default=60)
-arguments.add_argument(URL_PARAMS.SENSOR_SOURCE,    type=str,                          help=PARAMS_HELP_MESSAGES.SENSOR_SOURCE,      required=False, default="all")
-arguments.add_argument(URL_PARAMS.ID,               type=list_param,                   help=PARAMS_HELP_MESSAGES.ID,                 required=False, default="all")
-arguments.add_argument(URL_PARAMS.APPLY_CORRECTION, type=bool,                         help=PARAMS_HELP_MESSAGES.APPLY_CORRECTION,   required=False, default=False)
-arguments.add_argument(URL_PARAMS.AREA_MODEL,       type=multi_area,                   help=PARAMS_HELP_MESSAGES.AREA_MODEL_AS_LIST, required=False, default=multi_area("all"))
+arguments.add_argument(URL_PARAMS.FUNCTION,         type=function_parse,        help=PARAMS_HELP_MESSAGES.FUNCTION,           required=True)
+arguments.add_argument(URL_PARAMS.GROUP_BY,         type=groupby_parse,         help=PARAMS_HELP_MESSAGES.GROUP_BY,           required=False, default=None)
+arguments.add_argument(URL_PARAMS.TIME_INTERVAL,    type=int,                   help=PARAMS_HELP_MESSAGES.TIME_INTERVAL,      required=False, default=60)
+arguments.add_argument(URL_PARAMS.SENSOR_SOURCE,    type=str,                   help=PARAMS_HELP_MESSAGES.SENSOR_SOURCE,      required=False, default="all")
+arguments.add_argument(URL_PARAMS.ID,               type=list_param,            help=PARAMS_HELP_MESSAGES.ID,                 required=False, default="all")
+arguments.add_argument(URL_PARAMS.APPLY_CORRECTION, type=bool,                  help=PARAMS_HELP_MESSAGES.APPLY_CORRECTION,   required=False)
+arguments.add_argument(URL_PARAMS.AREA_MODEL,       type=multi_area,            help=PARAMS_HELP_MESSAGES.AREA_MODEL_AS_LIST, required=False, default=multi_area("all"))
 
 class getTimeAggregatedData(Resource):
 
+    @processPreRequest
     def get(self, **kwargs):
         
         # this is used to convert the parameter terms to those used in the database
@@ -38,7 +39,7 @@ class getTimeAggregatedData(Resource):
         timeInterval = args[URL_PARAMS.TIME_INTERVAL]
         sensor_source = args[URL_PARAMS.SENSOR_SOURCE]
         id = args[URL_PARAMS.ID]
-        apply_correction = args[URL_PARAMS.APPLY_CORRECTION]
+        apply_correction = (args[URL_PARAMS.APPLY_CORRECTION] is not None)
         areas = args[URL_PARAMS.AREA_MODEL]
 
         _area_models = common.jsonutils.getAreaModels()
@@ -211,5 +212,11 @@ class getTimeAggregatedData(Resource):
                 if sensor_source != "all":
                     new_row["Sensor source"] = sensor_source
                 measurements.append(new_row)
-
-        return jsonify(measurements)
+        
+        m2 = []
+        for m in measurements:
+            if "id" in m:
+                m["Sensor ID"] = m.pop("id")
+            m2.append(m)
+            
+        return jsonify(m2)

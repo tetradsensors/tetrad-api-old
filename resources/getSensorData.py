@@ -1,5 +1,5 @@
 from google.cloud import bigquery
-from common.params import URL_PARAMS, PARAMS_HELP_MESSAGES, list_param, multi_area
+from common.params import URL_PARAMS, PARAMS_HELP_MESSAGES, list_param, multi_area, bool_flag
 from flask_restful import Resource
 from flask_restful.reqparse import RequestParser 
 from flask_restful.inputs import datetime_from_iso8601
@@ -8,25 +8,26 @@ import common.utils
 import common.jsonutils
 import json
 
-# from common.decorators import processPreRequest
+from common.decorators import processPreRequest
 
 arguments = RequestParser()
-arguments.add_argument(URL_PARAMS.START_TIME,       type=datetime_from_iso8601, help=PARAMS_HELP_MESSAGES.START_TIME,         required=True)
-arguments.add_argument(URL_PARAMS.END_TIME,         type=datetime_from_iso8601, help=PARAMS_HELP_MESSAGES.END_TIME,           required=True)
-arguments.add_argument(URL_PARAMS.SENSOR_SOURCE,    type=str,                   help=PARAMS_HELP_MESSAGES.SENSOR_SOURCE,      required=False, default="all")
-arguments.add_argument(URL_PARAMS.ID,               type=list_param,            help=PARAMS_HELP_MESSAGES.ID,                 required=False, default=None)
-arguments.add_argument(URL_PARAMS.APPLY_CORRECTION, type=bool,                  help=PARAMS_HELP_MESSAGES.APPLY_CORRECTION,   required=False, default=False)
-arguments.add_argument(URL_PARAMS.AREA_MODEL,       type=multi_area,            help=PARAMS_HELP_MESSAGES.AREA_MODEL_AS_LIST, required=False, default=multi_area("all"))
+arguments.add_argument(URL_PARAMS.START_TIME,    type=datetime_from_iso8601, help=PARAMS_HELP_MESSAGES.START_TIME,         required=True)
+arguments.add_argument(URL_PARAMS.END_TIME,      type=datetime_from_iso8601, help=PARAMS_HELP_MESSAGES.END_TIME,           required=True)
+arguments.add_argument(URL_PARAMS.SENSOR_SOURCE, type=str,                   help=PARAMS_HELP_MESSAGES.SENSOR_SOURCE,      required=False, default="all")
+arguments.add_argument(URL_PARAMS.ID,            type=list_param,            help=PARAMS_HELP_MESSAGES.ID,                 required=False, default=None)
+arguments.add_argument(URL_PARAMS.NO_CORRECTION, type=bool_flag,             help=PARAMS_HELP_MESSAGES.NO_CORRECTION,      required=False, default=False)
+arguments.add_argument(URL_PARAMS.AREA_MODEL,    type=multi_area,            help=PARAMS_HELP_MESSAGES.AREA_MODEL_AS_LIST, required=False, default=multi_area("all"))
 
 class getSensorData(Resource):
 
+    @processPreRequest
     def get(self, **kwargs):
         args = arguments.parse_args()
         id = args[URL_PARAMS.ID]
         sensor_source = args[URL_PARAMS.SENSOR_SOURCE]
         start = args[URL_PARAMS.START_TIME]
         end = args[URL_PARAMS.END_TIME]
-        apply_correction = args[URL_PARAMS.APPLY_CORRECTION]
+        apply_correction = not bool(args[URL_PARAMS.NO_CORRECTION])
         areas = args[URL_PARAMS.AREA_MODEL]
 
         # Download and parse area_params.json
@@ -118,12 +119,14 @@ class getSensorData(Resource):
         df["status"] = status_data
 
         #    df.append(bigquery.SchemaField("status", "STRING"))
-
+        # dev.dev: 1224199135
+        # telemet: 1224327842
         #    rows.append(bigquery.SchemaField("status", "STRING"))
         # apply correction factors unless otherwise noted
         if apply_correction:
             for idx, datum in df.iterrows():
-                df.at[idx, 'pm2_5'], df.at[idx, 'status'] = common.jsonutils.applyCorrectionFactor(_area_models[datum["area_model"]]['correctionfactors'], datum['time'], datum['pm2_5'], datum['sensormodel'], status=True)
+                df.at[idx, 'pm2_5'], df.at[idx, 'status'] = common.jsonutils.applyCorrectionFactor2(_area_models[datum["area_model"]]['correctionfactors'], datum, status=True)
+                
         #    else:
         #        datum['status'] = "No correction"
 

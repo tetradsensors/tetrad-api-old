@@ -8,7 +8,7 @@ import common.utils
 import common.jsonutils
 import numpy as np
 
-# from common.decorators import processPreRequest
+from common.decorators import processPreRequest
 
 '''
 slc_ut:     latHi=40.8206&latLo=40.481700000000004&lonHi=-111.7616&lonLo=-112.15939999999999
@@ -32,6 +32,7 @@ arguments.add_argument(URL_PARAMS.TIME,     type=datetime_from_iso8601, help=PAR
 
 class getEstimateMap(Resource):
 
+    @processPreRequest
     def get(self, **kwargs):
         
         args = arguments.parse_args()

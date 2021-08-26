@@ -3,6 +3,7 @@ config.py
 config.production.py
 .env
 .env.prod
+config.json
 aqandu/aqandu.json
 tetrad.json
 aqandu/tetrad.json
