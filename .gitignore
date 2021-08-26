@@ -24,3 +24,4 @@ env/
 serve.log
 *.mat
 Pipfile.lock
+foo.py
