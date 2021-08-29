@@ -38,6 +38,9 @@ class URL_PARAMS(str, Enum):
     DEFAULT_LIMIT = 'defaultLimit'
     DEFAULT_HOURS_TO_RECHARGE = 'defaultHoursToRecharge'
 
+    def __str__(self):
+        return "'" + self.value + "'"
+
 
 class PARAMS_HELP_MESSAGES(str, Enum):
     START_TIME = f"{URL_PARAMS.START_TIME} must be in ISO 8601 format (2020-01-01T00:00:00+00) and specifies the start of the query."
@@ -49,8 +52,9 @@ class PARAMS_HELP_MESSAGES(str, Enum):
     SENSOR_SOURCE = "Single or multiple (comma separated) sensor source."
     FLAG_OUTLIERS = "If this parameter is given, then each measurement has an associated “status” entry in the record that indicates whether the measurement has been identified as an outlier using the mean absolute deviation method (MAD)."
     FUNCTION = "one of mean, min, or max"
-    GROUP_BY = "one of id, sensorSource, or area.  Default is to apply the function over all sensors at the specified times/intervals"
-    TIME_INTERVAL = "The time between individual maps, given in hours (or parts of hours, e.g. 0.25 is 15 minutes)."
+    GROUP_BY = "one of id, sensorModel, or area.  Default is to apply the function over all sensors at the specified times/intervals"
+    TIME_INTERVAL = "The time between individual maps, given in minutes"
+    TIME_INTERVAL_HR = "The time between individual maps, given in hours (or parts of hours, e.g. 0.25 is 15 minutes)."
     APPLY_CORRECTION = f"{URL_PARAMS.APPLY_CORRECTION}"
     LAT = "must be between -90, 90"
     LON = "must be between -180, 180"
@@ -107,7 +111,7 @@ def function_parse(value):
         raise ValueError(PARAMS_HELP_MESSAGES.FUNCTION)
 
 def groupby_parse(value):
-    if value in ['id', 'sensorSource', 'area']:
+    if value in ['id', 'sensorModel', 'area']:
         return value
     else:
         raise ValueError(PARAMS_HELP_MESSAGES.GROUP_BY)

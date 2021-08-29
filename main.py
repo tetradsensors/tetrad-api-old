@@ -9,6 +9,7 @@ from resources.getCorrectionFactors import getCorrectionFactors
 from resources.getLocalSensorData import getLocalSensorData
 from resources.getEstimateAtLocation import getEstimateAtLocation
 from resources.getEstimateAtLocations import getEstimateAtLocations
+from resources.getBoundingBox import getBoundingBox
 
 from resources.requestKeyInfo import getAllRequestKeys
 from resources.requestKeyInfo import getRequestInfo
@@ -22,14 +23,15 @@ from resources.requestKeyInfo import addNewService
 app = Flask(__name__)
 api = Api(app)
 
-api.add_resource(getSensorData,         '/api/getSensorData')
-api.add_resource(getTimeAggregatedData, '/api/getTimeAggregatedData')
-api.add_resource(getEstimateMap,        '/api/getEstimateMap')
-api.add_resource(getLiveSensors,        '/api/getLiveSensors')
-api.add_resource(getCorrectionFactors,  '/api/getCorrectionFactors')
-api.add_resource(getLocalSensorData,    '/api/getLocalSensorData')
-api.add_resource(getEstimateAtLocation,    '/api/getEstimateAtLocation')
-api.add_resource(getEstimateAtLocations,    '/api/getEstimateAtLocations')
+api.add_resource(getSensorData,          '/api/getSensorData')
+api.add_resource(getTimeAggregatedData,  '/api/getTimeAggregatedData')
+api.add_resource(getEstimateMap,         '/api/getEstimateMap')
+api.add_resource(getLiveSensors,         '/api/getLiveSensors')
+api.add_resource(getCorrectionFactors,   '/api/getCorrectionFactors')
+api.add_resource(getLocalSensorData,     '/api/getLocalSensorData')
+api.add_resource(getEstimateAtLocation,  '/api/getEstimateAtLocation')
+api.add_resource(getEstimateAtLocations, '/api/getEstimateAtLocations')
+api.add_resource(getBoundingBox,         '/api/getBoundingBox')
 
 api.add_resource(getAllRequestKeys,                 '/api_limited/getAllRequestKeys')
 api.add_resource(getRequestInfo,                    '/api_limited/getRequestInfo')

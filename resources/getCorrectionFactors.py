@@ -29,7 +29,7 @@ class getCorrectionFactors(Resource):
 
             if time != None:
                 area_factors = {}
-                this_time = common.jsonutils.parseDateString(time, area_model['timezone'])
+                this_time = time
                 for this_type in factors:
                     for i in range(len(factors[this_type])):
                         if (factors[this_type][i]['starttime'] <= this_time and factors[this_type][i]['endtime'] > this_time) or (factors[this_type][i]['starttime'] == "default"):
