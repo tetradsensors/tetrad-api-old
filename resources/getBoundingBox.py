@@ -29,7 +29,6 @@ class getBoundingBox(Resource):
                 E = info['boundingbox'][1][2]
                 W = info['boundingbox'][0][2]
                 bboxes[area] = {
-                    "Region": area,
                     "North": N,
                     "South": S,
                     "East": E,
