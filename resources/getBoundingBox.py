@@ -13,7 +13,7 @@ arguments.add_argument(URL_PARAMS.AREA_MODEL, type=multi_area, help=PARAMS_HELP_
 
 class getBoundingBox(Resource):
 
-    # @processPreRequest
+    @processPreRequest
     def get(self, **kwargs):
         args = arguments.parse_args()
         areas = args[URL_PARAMS.AREA_MODEL]
