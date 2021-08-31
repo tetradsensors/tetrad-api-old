@@ -137,7 +137,14 @@ class getLiveSensors(Resource):
 
         if apply_correction:
             for idx, datum in df.iterrows():
-                df.at[idx, 'pm2_5'], this_status= common.jsonutils.applyCorrectionFactor2(_area_models[datum["area_model"]]['correctionfactors'], datum, status=True)
+                df.at[idx, 'pm2_5'], this_status= common.jsonutils.applyCorrectionFactor(
+                    factors=_area_models[datum["area_model"]]['correctionfactors'], 
+                    data_timestamp=datum['time'], 
+                    data=datum['pm2_5'], 
+                    sensor_type=datum['sensormodel'], 
+                    sensor_source=datum['sensorsource'],
+                    status=True
+                )
                 df.at[idx, 'status'] = df.at[idx, 'status'] + [this_status]
         else:
             for idx, datum in df.iterrows():

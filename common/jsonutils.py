@@ -143,16 +143,16 @@ def buildAreaModelsFromJson(json_data):
     return area_models
 
 # note this can be very slow -- need 
-def applyCorrectionFactor(factors, data_timestamp, data, sensor_type, status=False):
+def applyCorrectionFactor(factors, data_timestamp, data, sensor_type, sensor_source=None, status=False):
     this_type = "0000"
 
     if sensor_type is None:
-        if not status:
-            return data
-        else:
-            return data, "no correction"
+        if sensor_source == 'AQ&U' or sensor_source == 'Tetrad':
+            sensor_type = 'PMS3003'
+        elif sensor_source == 'PurpleAir':
+            sensor_type = 'PMS5003'
 
-    if sensor_type == "FEM":
+    if sensor_type is None:
         if not status:
             return data
         else:
@@ -185,57 +185,6 @@ def applyCorrectionFactor(factors, data_timestamp, data, sensor_type, status=Fal
     else:
         return data, "no correction"
 
-def applyCorrectionFactor2(factors, datum, status=False):
-    
-    data_timestamp = datum['time']
-    data = datum['pm2_5']
-    sensor_type = datum['sensormodel']
-    sensor_source = datum['sensorsource']
-
-    if sensor_type is None:
-        if sensor_source == 'AQ&U' or sensor_source == 'Tetrad':
-            sensor_type = 'PMS3003'
-        elif sensor_source == 'PurpleAir':
-            sensor_type = 'PMS5003'
-    
-    this_type = "0000"
-
-    if sensor_type is None:
-        if not status:
-            return data
-        else:
-            return data, "no correction"
-
-    if sensor_type == "FEM":
-        if not status:
-            return data
-        else:
-            return data, "no correction"
-    
-    if sensor_type in factors:
-        this_type = sensor_type
-    elif "default" in factors:
-        this_type = "default"
-    else:
-        print(f"Got bad type in correction factors {sensor_type}")
-        print(factors)
-    default_idx = -1
-    for i in range(len(factors[this_type])):
-            if factors[this_type][i]['starttime'] <= data_timestamp and factors[this_type][i]['endtime'] > data_timestamp:
-                if not status:
-                    return np.maximum(data * factors[this_type][i]['slope'] + factors[this_type][i]['intercept'], 0.0)
-                else:
-                    return np.maximum(data * factors[this_type][i]['slope'] + factors[this_type][i]['intercept'], 0.0), factors[this_type][i]['note']
-
-            if factors[this_type][i]['starttime'] == "default":
-                default_idx = i
-    if default_idx >= 0:
-        return np.maximum(data * factors[this_type][default_idx]['slope'] + factors[this_type][default_idx]['intercept'], 0.0), factors[this_type][i]['note']
-        
-    if not status:
-        return data
-    else:
-        return data, "no correction"
 
 def getLengthScalesForTime(length_scales_array, datetime):
     default_idx = -1
