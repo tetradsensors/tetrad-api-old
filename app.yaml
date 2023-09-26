@@ -20,24 +20,30 @@ service: backend
 
 runtime: python38
 
-instance_class: F2
+instance_class: F4
 
-entrypoint: gunicorn -t 300 -b :$PORT main:app
+inbound_services:
+  - warmup
+
+automatic_scaling:
+  min_idle_instances: 3
+
+entrypoint: gunicorn -t 300 -b :$PORT -w 8 main:app
 
 handlers:
-- url: /static
-  static_dir: tetrad/static
-  secure: always
+  - url: /static
+    static_dir: tetrad/static
+    secure: always
 
-- url: /.*
-  secure: always
-  redirect_http_response_code: 301
-  script: auto
- 
-- url: /favicon\.ico
-  secure: always
-  static_files: static/img/favicon.ico
-  upload: static/img/favicon\.ico 
+  - url: /.*
+    secure: always
+    redirect_http_response_code: 301
+    script: auto
+
+  - url: /favicon\.ico
+    secure: always
+    static_files: static/img/favicon.ico
+    upload: static/img/favicon\.ico
 
 env_variables:
   GS_BUCKET: "tetrad_server_files"
@@ -54,57 +60,57 @@ env_variables:
   # BQ_TABLE_CLEV:   "clev_oh"
   BQ_LABEL_BADGPS: "badgps"
   BQ_LABEL_GLOBAL: "global"
-  FIELD_NN:   "Nickname"
-  FIELD_TS:   "Timestamp"
-  FIELD_ID:   "DeviceID"
+  FIELD_NN: "Nickname"
+  FIELD_TS: "Timestamp"
+  FIELD_ID: "DeviceID"
   # FIELD_LAT:  "Latitude"
   # FIELD_LON:  "Longitude"
-  FIELD_GPS:  "GPS"
-  FIELD_ELE:  "Elevation"
-  FIELD_PM1:  "PM1"
-  FIELD_PM2:  "PM2_5"
+  FIELD_GPS: "GPS"
+  FIELD_ELE: "Elevation"
+  FIELD_PM1: "PM1"
+  FIELD_PM2: "PM2_5"
   FIELD_PM10: "PM10"
   FIELD_TEMP: "Temperature"
-  FIELD_HUM:  "Humidity"
-  FIELD_RED:  "MicsRED"
-  FIELD_NOX:  "MicsNOX"
-  FIELD_HTR:  "MicsHeater"
-  FIELD_FLG:  "Flags"
+  FIELD_HUM: "Humidity"
+  FIELD_RED: "MicsRED"
+  FIELD_NOX: "MicsNOX"
+  FIELD_HTR: "MicsHeater"
+  FIELD_FLG: "Flags"
   FIELD_RSSI: "RSSI"
-  FIELD_SRC:  "Source"
-  FIELD_PMS:  "PMSModel"
-  FIELD_LBL:  "Label"
+  FIELD_SRC: "Source"
+  FIELD_PMS: "PMSModel"
+  FIELD_LBL: "Label"
   FIELD_PMRAW: "PM2_5_Raw"
-  Q_SLC:      "SLC"
-  Q_CHATT:    "CHATT"
-  Q_CLEV:     "CLEV"
-  Q_KC:       "KC"
-  Q_GLOBAL:   "GLOBAL"
-  Q_BADGPS:   "BADGPS"
-  Q_ALL:      "ALL"
-  Q_ALLGPS:   "ALLGPS"
-  Q_TS:       "TIMESTAMP"
-  Q_ID:       "DEVICEID"
-  Q_GPS:      "GPS"
-  Q_LAT:      "LATITUDE"
-  Q_LON:      "LONGITUDE"
-  Q_ELE:      "ELEVATION"
-  Q_PM1:      "PM1"
-  Q_PM2:      "PM2_5"
-  Q_PM10:     "PM10"
-  Q_TEMP:     "TEMPERATURE"
-  Q_HUM:      "HUMIDITY"
-  Q_RED:      "MICSRED"
-  Q_NOX:      "MICSNOX"
-  Q_HTR:      "MICSHEATER"
-  Q_RSSI:     "RSSI"
-  Q_PMRAW:    "PM_RAW"
-  Q_SRC:      "SOURCE"
-  Q_LBL:    "LABEL"
-  PM_BAD_THRESH:  500
-  PM_BAD_FLAG:    -1
-  TEMP_BAD_FLAG:  -1000
-  HUM_BAD_FLAG:   -1000
+  Q_SLC: "SLC"
+  Q_CHATT: "CHATT"
+  Q_CLEV: "CLEV"
+  Q_KC: "KC"
+  Q_GLOBAL: "GLOBAL"
+  Q_BADGPS: "BADGPS"
+  Q_ALL: "ALL"
+  Q_ALLGPS: "ALLGPS"
+  Q_TS: "TIMESTAMP"
+  Q_ID: "DEVICEID"
+  Q_GPS: "GPS"
+  Q_LAT: "LATITUDE"
+  Q_LON: "LONGITUDE"
+  Q_ELE: "ELEVATION"
+  Q_PM1: "PM1"
+  Q_PM2: "PM2_5"
+  Q_PM10: "PM10"
+  Q_TEMP: "TEMPERATURE"
+  Q_HUM: "HUMIDITY"
+  Q_RED: "MICSRED"
+  Q_NOX: "MICSNOX"
+  Q_HTR: "MICSHEATER"
+  Q_RSSI: "RSSI"
+  Q_PMRAW: "PM_RAW"
+  Q_SRC: "SOURCE"
+  Q_LBL: "LABEL"
+  PM_BAD_THRESH: 500
+  PM_BAD_FLAG: -1
+  TEMP_BAD_FLAG: -1000
+  HUM_BAD_FLAG: -1000
   # BOUNDING_BOX_FILENAME: "model_files/bounding_box.csv"
   CORRECTION_FACTORS_FILENAME: "model_files/correction_factors.csv"
   # ELEVATION_MAP_FILENAME: "model_files/elevation_map.mat"
@@ -126,4 +132,3 @@ env_variables:
   DOMAIN_NAME: "tetradsensors.com"
   SUBDOMAIN_API: "api"
   SUBDOMAIN_OTA: "ota"
-  
